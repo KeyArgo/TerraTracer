@@ -1,10 +1,10 @@
-# TerraTrace
+# TerraTracer
 
-TerraTrace is a versatile geolocation tool designed to calculate precise coordinates based on user-defined starting points, bearings, and distances. Whether you're a hiker, land mapper, drone enthusiast, rockhound, or just need to pinpoint a location, TerraTrace offers accurate location data tailored to your needs.
+TerraTracer is a versatile geolocation tool designed to calculate precise coordinates based on user-defined starting points, bearings, and distances. Whether you're a hiker, land mapper, drone enthusiast, rockhound, or just need to pinpoint a location, TerraTracer offers accurate location data tailored to your needs.
 
 ## Introduction
 
-TerraTrace simplifies geolocation by providing various methods for calculating coordinates. Choose the method that suits your needs for accurate results.
+TerraTracer simplifies geolocation by providing various methods for calculating coordinates. Choose the method that suits your needs for accurate results.
 
 ## Geolocation Methods and Accuracy
 
@@ -56,26 +56,26 @@ pip install geopy geographiclib
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/KeyArgo/TerraTrace.git
+git clone https://github.com/KeyArgo/TerraTracer.git
 ```
 
 2. Navigate to the directory:
 
 ```bash
-cd TerraTrace
+cd TerraTracer
 ```
 
 ## Usage
 
-Run TerraTrace:
+Run TerraTracer:
 
 ```bash
-python TerraTrace_v0.1.py
+python TerraTracer_v0.1.py
 ```
 
 Follow on-screen prompts to input starting coordinates, choose the geolocation method, and specify points.
 
-TerraTrace will display the calculated coordinates for each point.
+TerraTracer will display the calculated coordinates for each point.
 
 ## Features
 
@@ -86,7 +86,7 @@ TerraTrace will display the calculated coordinates for each point.
 
 ## Contributing
 
-Contributions to TerraTrace are welcome! Here's how you can get started:
+Contributions to TerraTracer are welcome! Here's how you can get started:
 
 * Open an issue to report bugs or suggest enhancements.
 * Submit a pull request with your code contributions.
@@ -95,4 +95,4 @@ Please check our Contribution Guidelines for more details.
 
 ## License
 
-TerraTrace is licensed under the MIT License.
+TerraTracer is licensed under the MIT License.
