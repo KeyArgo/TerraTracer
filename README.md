@@ -34,8 +34,6 @@ Choose from multiple geolocation methods:
 * **Pros**: Might mitigate individual method limitations.
 * **Cons**: No guarantee of improved accuracy in all scenarios.
 
-For everyday use, consider using the Spherical Model, while Vincenty's and Karney's Methods are suitable for professional applications.
-
 ## Installation
 
 ### Prerequisites
