@@ -10,11 +10,11 @@ TerraTracer simplifies geolocation by providing various methods for calculating 
 
 Choose from multiple geolocation methods:
 
-### Spherical Model:
+### Karney's Method:
 
-* **Explanation**: Approximates Earth as a perfect sphere. Uses trigonometric equations to calculate new latitude and longitude.
-* **Pros**: Fast and computationally less intensive.
-* **Cons**: Less accurate over long distances due to Earth's oblate spheroid shape.
+* **Explanation**: An enhanced method over Vincenty's. Uses a series expansion for calculations.
+* **Pros**: Faster, more accurate, and always converges.
+* **Cons**: More computationally intensive than the spherical model.
 
 ### Vincenty's Method:
 
@@ -22,11 +22,11 @@ Choose from multiple geolocation methods:
 * **Pros**: More accurate over most locations, especially long distances.
 * **Cons**: Might not converge near the poles.
 
-### Karney's Method:
+### Spherical Model:
 
-* **Explanation**: An enhanced method over Vincenty's. Uses a series expansion for calculations.
-* **Pros**: Faster, more accurate, and always converges.
-* **Cons**: More computationally intensive than the spherical model.
+* **Explanation**: Approximates Earth as a perfect sphere. Uses trigonometric equations to calculate new latitude and longitude.
+* **Pros**: Fast and computationally less intensive.
+* **Cons**: Less accurate over long distances due to Earth's oblate spheroid shape.
 
 ### Average Methods:
 
