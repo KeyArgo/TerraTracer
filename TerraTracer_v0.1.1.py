@@ -4,75 +4,93 @@ from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 import re
 
-def get_coordinate_in_dd_or_dms(coordinate_name="latitude"):
-    format_choice = input(f"Enter {coordinate_name} format (1 for DD, 2 for DMS): ")
+def validate_dms(degrees, coordinate_name):
+    if coordinate_name == "latitude" and (degrees < 0 or degrees > 90):
+        raise ValueError("Invalid latitude degree value. It should be between 0 and 90.")
+    elif coordinate_name == "longitude" and (degrees < 0 or degrees > 180):
+        raise ValueError("Invalid longitude degree value. It should be between 0 and 180.")
 
-    if format_choice == "1":
+def get_coordinate_in_dd_or_dms(coordinate_format, coordinate_name="latitude"):
+    if coordinate_format == "1":
         value = float(input(f"Enter {coordinate_name} in decimal degrees (e.g., 68.0106 or -68.0106): "))
         return value
 
-    elif format_choice == "2":
-        dms_str = input(f"Enter {coordinate_name} in DMS format (e.g., N 68° 00' 38\" or S 68° 00' 38\"): ")
-        _, dd_value = parse_and_convert_dms_to_dd_updated(dms_str)
+    elif coordinate_format == "2":
+        dms_str = input(f"Enter {coordinate_name} in DMS format (e.g., 68° 00' 38\"N [for latitude] or 110° 00' 38\"W [for longitude]): ")
+        _, dd_value = parse_and_convert_dms_to_dd(dms_str, coordinate_name)
         return dd_value
 
     else:
         print("Invalid choice.")
         return None
 
-def parse_and_convert_dms_to_dd_updated(dms_str):
-    match = re.match(r"(?i)([NSEW])?\s*(\d+)[^\d]+(°|degrees)?\s*(\d+)'(\s*(\d+(\.\d+)?)\"?)?\s*([NSEW])?", dms_str)
-
+def parse_and_convert_dms_to_dd(dms_str, coordinate_name):
+    match = re.match(r"(?i)([NSEW])?\s*(\d+)[^\d]*(°|degrees)?\s*(\d+)?'?\s*(\d+(\.\d+)?)?\"?\s*([NSEW])?", dms_str)
     if not match:
         raise ValueError("Invalid DMS string format.")
     
-    direction1, degrees, _, minutes, seconds, _, _, direction2 = match.groups()
-    if seconds:
-        seconds = float(seconds.replace("\"", ""))
-    else:
-        seconds = 0.0
+    groups = match.groups()
+    primary_direction = groups[0] if groups[0] in ["N", "S", "E", "W"] else (groups[-1] if groups[-1] in ["N", "S", "E", "W"] else None)
+    degrees = float(groups[1])
+    minutes = float(groups[3]) if groups[3] else 0
+    seconds = float(groups[4].replace("\"", "")) if groups[4] else 0
     
-    dd = float(degrees) + float(minutes)/60 + seconds/3600
+    dd = degrees + minutes/60 + seconds/3600
+    validate_dms(degrees, coordinate_name)
     
-    direction = ((direction1 or '') + (direction2 or '')).upper()
+    if primary_direction in ["S", "W"]:
+        dd = -dd
         
-    if direction in ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]:
-        if direction == "N":
-            pass  # already in positive
-        elif direction == "S":
-            if direction2 and direction2.upper() == "E":
-                dd = 180 - dd
-            else:
-                dd = 180 + dd
-        elif direction == "E":
-            dd = dd
-        elif direction == "W":
-            dd = 360 - dd
-        elif direction == "SE":
-            dd = 180 - dd
-        elif direction == "SW":
-            dd = 180 + dd
+    return primary_direction, dd
+
+def parse_and_convert_dms_to_dd_survey(dms_str, coordinate_name):
+    match = re.match(r"(?i)([NSEW])\s*(\d+)[^\d]*(°|degrees)?\s*(\d+)?'?\s*(\d+(\.\d+)?)?\"?\s*([NSEW])?$", dms_str)
+    if not match:
+        raise ValueError("Invalid DMS string format.")
+    
+    groups = match.groups()
+    print(f"Captured groups: {groups}")  # Debug print
+    
+    start_direction = groups[0].upper() if groups[0] else None
+    turn_direction = groups[-1].upper() if groups[-1] else None
+
+    degrees = float(groups[1])
+    minutes = float(groups[3]) if groups[3] else 0
+    seconds = float(groups[4].replace("\"", "")) if groups[4] else 0
+    
+    dd = degrees + minutes/60 + seconds/3600
+    
+    # Adjust bearing calculation based on land survey notation
+    if start_direction == "N" and turn_direction == "E":
+        bearing = dd
+    elif start_direction == "N" and turn_direction == "W":
+        bearing = 360 - dd
+    elif start_direction == "S" and turn_direction == "E":
+        bearing = 180 - dd
+    elif start_direction == "S" and turn_direction == "W":
+        bearing = 180 + dd
     else:
-        raise ValueError("Direction not provided.")
-
-
-    return direction, dd
+        print(f"Start Direction: {start_direction}, Turn Direction: {turn_direction}")  # Debug print
+        raise ValueError("Invalid combination of starting and turning directions.")
+    
+    return bearing
 
 def parse_dd_or_dms():
     format_choice = input("Enter direction format (1 for DD, 2 for DMS): ")
 
     if format_choice == "1":
-        direction = input("Enter direction (e.g., N, S, E, W, NE, NW, SE, SW): ").upper()
-        dd_value = float(input("Enter direction in decimal degrees (e.g., 68.0106): "))
+        direction = input("Enter the starting direction (North, South, East, West) abbreviated as N, S, E, or W: ").upper()
+        dd_value = float(input("Enter the angle from the starting direction in decimal degrees (e.g., 68.0106): "))
 
-        if direction == "N":
+        # Adjust for land survey notation in DD format
+        if direction == "E":
+            bearing = 90  # Setting East to 90°
+        elif direction == "N":
             bearing = dd_value
         elif direction == "S":
-            bearing = 180 - dd_value
-        elif direction == "E":
-            bearing = dd_value
+            bearing = 180 + dd_value
         elif direction == "W":
-            bearing = 270 - dd_value
+            bearing = 270 + dd_value
         else:
             print("Invalid direction")
             return None
@@ -81,7 +99,14 @@ def parse_dd_or_dms():
 
     elif format_choice == "2":
         dms_direction = input("Enter direction in DMS format (e.g., N 68° 00' 38\"): ")
-        _, bearing = parse_and_convert_dms_to_dd_updated(dms_direction)
+        if " " in dms_direction:  # Check for space to differentiate between land survey and typical GPS
+            bearing = parse_and_convert_dms_to_dd_survey(dms_direction, "direction")
+        else:
+            _, bearing = parse_and_convert_dms_to_dd(dms_direction, "direction")
+            if _ == "S":
+                bearing = 180 + bearing
+            elif _ == "W":
+                bearing = 270 + bearing
         return bearing
 
     else:
@@ -128,9 +153,11 @@ def average_methods(lat, long, bearing, distance):
 
     return average_lat, average_long
     
-def main():
-    lat = get_coordinate_in_dd_or_dms("latitude")
-    long = get_coordinate_in_dd_or_dms("longitude")
+def main_enhanced():
+    coordinate_format = input("Enter coordinates format (1 for DD, 2 for DMS): ")
+    
+    lat = get_coordinate_in_dd_or_dms(coordinate_format, "latitude")
+    long = get_coordinate_in_dd_or_dms(coordinate_format, "longitude")
     
     if lat is None or long is None:
         return
@@ -168,4 +195,4 @@ def main():
 
         print(f"N{idx+1}: {lat:.6f}, {long:.6f}\n")
 
-main()
+main_enhanced()
