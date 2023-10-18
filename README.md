@@ -70,7 +70,7 @@ cd TerraTracer
 Run TerraTracer:
 
 ```bash
-python TerraTracer_v0.1.py
+python TerraTracer_v0.1.1.py
 ```
 
 Follow on-screen prompts to input starting coordinates, choose the geolocation method, and specify points.
