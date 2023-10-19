@@ -3,7 +3,83 @@ from geopy.distance import distance as geopy_distance
 from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 import re
+import os
 
+def save_kml_to_file(kml_content):
+    default_directory = os.getcwd()  # This gets the current working directory
+    default_filename = "output.kml"
+
+    # Ask the user for the directory and filename
+    directory = input(f"Enter the directory to save the KML file (default is {default_directory}): ")
+    filename = input(f"Enter the filename for the KML file (default is {default_filename}): ")
+
+    # If the user just presses 'Enter', use the default values
+    directory = directory if directory else default_directory
+    filename = filename if filename else default_filename
+
+    # Ensure the filename ends with ".kml"
+    if not filename.endswith(".kml"):
+        filename += ".kml"
+
+    # Join the directory and filename to get the full path
+    full_path = os.path.join(directory, filename)
+
+    # Create the directory if it doesn't exist
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # Save the KML content to the specified path
+    with open(full_path, 'w') as file:
+        file.write(kml_content)
+
+    print(f"KML file saved at {full_path}")
+    
+def order_points(points):
+    hull = ConvexHull(points)
+    return [points[i] for i in hull.vertices]
+    
+def generate_kml_polygon(points, color="#ffffff"):
+    kml_header = '''<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>GPS Polygon</name>
+    <description>Polygon from the computed GPS points</description>
+'''
+
+    kml_footer = '''  </Document>
+</kml>'''
+
+    ordered_points = order_points(points)
+    ordered_points.append(ordered_points[0])  # Close the polygon
+    coordinates_str = "\n".join([f"{lon},{lat}" for lat, lon in ordered_points])
+
+    # Here's the modification to add a black border
+    kml_polygon = f'''
+    <Placemark>
+      <name>Polygon</name>
+      <Style>
+         <LineStyle>
+            <color>ff000000</color>
+            <width>2</width>
+         </LineStyle>
+         <PolyStyle>
+            <color>{color[1:]}</color>
+         </PolyStyle>
+      </Style>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              {coordinates_str}
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+'''
+    
+    return kml_header + kml_polygon + kml_footer
+    
 def validate_dms(degrees, coordinate_name):
     if coordinate_name == "latitude" and (degrees < 0 or degrees > 90):
         raise ValueError("Invalid latitude degree value. It should be between 0 and 90.")
@@ -153,7 +229,7 @@ def average_methods(lat, long, bearing, distance):
 
     return average_lat, average_long
     
-def main_enhanced():
+def main():
     coordinate_format = input("Enter coordinates format (1 for DD, 2 for DMS): ")
     
     lat = get_coordinate_in_dd_or_dms(coordinate_format, "latitude")
@@ -172,27 +248,53 @@ def main_enhanced():
     choice = int(input("Enter choice (1/2/3/4): "))
 
     num_points = int(input("Enter the number of points to compute: "))
-
+    points = []  # List to store all computed points
     for idx in range(num_points):
         bearing = parse_dd_or_dms()
-        if bearing is None:
-            continue
+        if bearing is not None:
+            distance = float(input("Enter distance in feet: ").replace(',', ''))
+            if choice == 1:
+                lat, long = compute_gps_coordinates_karney(lat, long, bearing, distance)
+            elif choice == 2:
+                lat, long = compute_gps_coordinates_vincenty(lat, long, bearing, distance)
+            elif choice == 3:
+                lat, long = compute_gps_coordinates_spherical(lat, long, bearing, distance)
+            elif choice == 4:
+                lat, long = average_methods(lat, long, bearing, distance)
+            points.append((lat, long))
+            print(f"Computed Point {idx+1}: Latitude: {lat:.6f}, Longitude: {long:.6f}\n")
+
+    # Check if the last point is the same as the first point to determine if the polygon is closed
+    while geopy_distance(points[0], points[-1]).feet > 10:  # Using a threshold of 10 feet
+        print("Warning: Your polygon is not closed.")
+        add_point = input("Would you like to enter one more point to close the polygon? (yes/no): ").strip().lower()
         
-        print(f"Bearing: {bearing:.6f}\n")
-        distance = float(input("Enter distance in feet: ").replace(',', ''))
-
-        if choice == 1:
-            lat, long = compute_gps_coordinates_karney(lat, long, bearing, distance)
-        elif choice == 2:
-            lat, long = compute_gps_coordinates_vincenty(lat, long, bearing, distance)
-        elif choice == 3:
-            lat, long = compute_gps_coordinates_spherical(lat, long, bearing, distance)
-        elif choice == 4:
-            lat, long = average_methods(lat, long, bearing, distance)
+        if add_point == "yes":
+            bearing = parse_dd_or_dms()
+            if bearing is not None:
+                distance = float(input("Enter distance in feet: ").replace(',', ''))
+                # Use the last point's latitude and longitude as the starting point
+                lat, long = points[-1]
+                if choice == 1:
+                    lat, long = compute_gps_coordinates_karney(lat, long, bearing, distance)
+                elif choice == 2:
+                    lat, long = compute_gps_coordinates_vincenty(lat, long, bearing, distance)
+                elif choice == 3:
+                    lat, long = compute_gps_coordinates_spherical(lat, long, bearing, distance)
+                elif choice == 4:
+                    lat, long = average_methods(lat, long, bearing, distance)
+                points.append((lat, long))
+                print(f"Computed Point {len(points)}: Latitude: {lat:.6f}, Longitude: {long:.6f}\n")  # Displaying the point number dynamically
         else:
-            print("Invalid choice.")
-            return
+            print("The polygon will be closed using the first point as the last point.")
+            points.append(points[0])  # Add the first point as the last point to close the polygon
 
-        print(f"N{idx+1}: {lat:.6f}, {long:.6f}\n")
+    export_choice = input("Do you want to export the points to a KML file? (yes/no): ")
+    if export_choice.lower() == 'yes':
+        # Generate KML content for polygon
+        kml_content = generate_kml_polygon(points, color="#3300FF00")  # 20% transparent green
+    
+        # Save to a .kml file
+        save_kml_to_file(kml_content)
 
-main_enhanced()
+main()
