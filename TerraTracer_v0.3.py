@@ -6,6 +6,52 @@ from scipy.spatial import ConvexHull
 import re
 import os
 
+
+def save_data_to_file(data_content, initial_coords, monument=None):
+    default_directory = os.getcwd()
+    default_filename = "output.tzt"
+
+    directory = input(f"Enter the directory to save the Data file (default is {default_directory}): ")
+    filename = input(f"Enter the filename for the Data file (default is {default_filename}): ")
+
+    directory = directory if directory else default_directory
+    filename = filename if filename else default_filename
+
+    if not filename.endswith(".tzt"):
+        filename += ".tzt"
+
+    full_path = os.path.join(directory, filename)
+
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    with open(full_path, 'w') as file:
+        # Write initial coordinates
+        file.write("[INITIAL]\n")
+        initial = data_content.get('initial', {})
+        file.write(f"Latitude: {initial.get('lat', ''):.6f}\n")
+        file.write(f"Longitude: {initial.get('lon', ''):.6f}\n\n")
+        
+        # If a monument exists, write its details
+        monument = data_content.get('monument', {})
+        if monument:
+            file.write("[MONUMENT]\n")
+            file.write(f"Label: {monument.get('label', '')}\n")
+            file.write(f"Latitude: {monument.get('lat', ''):.6f}\n")
+            file.write(f"Longitude: {monument.get('lon', ''):.6f}\n\n")
+        
+        # Write polygon points, bearing, and distance
+        file.write("[POLYGON]\n")
+        for i, point in enumerate(data_content.get('polygon', [])):
+            lat = point.get('lat', 0)
+            lon = point.get('lon', 0)
+            bearing = point.get('bearing_from_prev', 0)
+            distance = point.get('distance_from_prev', 0)
+            file.write(f"Point {i+1}: Latitude: {lat:.6f}, Longitude: {lon:.6f}, ")
+            file.write(f"Bearing from Previous: {bearing:.2f}°, Distance from Previous: {distance:.2f} ft\n")
+        
+    print(f"Data file saved at {full_path}")
+
 def calculate_distance(coord1, coord2):
     return geopy_distance.distance(coord1, coord2).feet
     
@@ -316,6 +362,16 @@ def check_polygon_closure(points, reference_point=None):
     return False
     
 def main():
+
+    initial_lat = None
+    initial_lon = None
+
+    data = {
+        "initial": {},
+        "monument": {},
+        "polygon": []
+    }
+    
     while True:
         coordinate_format = input("Enter coordinates format (1 for DD, 2 for DMS): ")
         if coordinate_format not in ["1", "2"]:
@@ -323,11 +379,14 @@ def main():
             continue
         break
 
-    lat = get_coordinate_in_dd_or_dms(coordinate_format, "latitude")
-    lon = get_coordinate_in_dd_or_dms(coordinate_format, "longitude")
+    initial_lat = get_coordinate_in_dd_or_dms(coordinate_format, "latitude")
+    initial_lon = get_coordinate_in_dd_or_dms(coordinate_format, "longitude")
+    lat, lon = initial_lat, initial_lon
 
     if lat is None or lon is None:
         return
+    
+    data["initial"] = {"lat": lat, "lon": lon}
 
     print("\nHow would you like to use the initial coordinates?")
     print("1) As a starting location (won't be included in the polygon).")
@@ -345,13 +404,8 @@ def main():
         if point_use_choice == "1":
             monument_label = input("Enter a label for the monument (e.g., Monument, Point A, etc.): ")
             reference_point = (lat, lon, monument_label)
-        elif point_use_choice == "2":
-            # Do not add the initial coordinates to the points list here
-            # This will be taken care of when the first computed point is added
-            pass
-        else:
-            print("Invalid choice.")
-            return
+            data["monument"] = {"lat": lat, "lon": lon, "label": monument_label}
+            
     elif coordinate_use_choice == "2":
         points.append((lat, lon))
         print(f"Point 1: Latitude: {lat:.6f}, Longitude: {lon:.6f}\n")
@@ -370,6 +424,7 @@ def main():
         if bearing is not None:
             distance = float(input("Enter distance in feet: ").replace(',', ''))
 
+            prev_lat, prev_lon = lat, lon
             # Compute new point
             if choice == 1:
                 lat, lon = compute_gps_coordinates_karney(lat, lon, bearing, distance)
@@ -384,11 +439,14 @@ def main():
                 return
 
             points.append((lat, lon))
-            print(f"Computed Point {len(points)}: Latitude: {lat:.6f}, Longitude: {lon:.6f}\n")
+            data_point = {
+                "lat": lat, "lon": lon,
+                "bearing_from_prev": bearing, 
+                "distance_from_prev": distance
+            }
+            data["polygon"].append(data_point)
 
-            # If it's the first iteration and the user selected "As a starting location", adjust the monument location
-            if i == 0 and coordinate_use_choice == "1" and 'monument_label' in locals():
-                reference_point = (lat, lon, monument_label)
+            print(f"Computed Point {len(points)}: Latitude: {lat:.6f}, Longitude: {lon:.6f}\n")
 
     while True:  # Infinite loop to prompt the user
         if check_polygon_closure(points, reference_point):
@@ -407,6 +465,7 @@ def main():
             if bearing is not None:
                 distance = float(input("Enter distance in feet: ").replace(',', ''))
 
+                prev_lat, prev_lon = lat, lon
                 # Compute new point
                 if choice == 1:
                     lat, lon = compute_gps_coordinates_karney(lat, lon, bearing, distance)
@@ -421,6 +480,12 @@ def main():
                     return
 
                 points.append((lat, lon))
+                data_point = {
+                    "lat": lat, "lon": lon,
+                    "bearing_from_prev": bearing, 
+                    "distance_from_prev": distance
+                }
+                data["polygon"].append(data_point)
                 print(f"Computed Point {len(points)}: Latitude: {lat:.6f}, Longitude: {lon:.6f}\n")
 
         elif add_point_decision == 'no':
@@ -431,21 +496,25 @@ def main():
     if not check_polygon_closure(points, reference_point):
         print("Warning: Your polygon is not closed.")
                                                                 
-    export_choice = input("Do you want to export the polygon to a KML file? (yes/no): ")
+    export_choice = input("Do you want to export the polygon to a KML file or Data File? (yes/no): ")
     if export_choice.lower() == 'yes':
-        # Generate KML content for polygon
-        kml_polygon = generate_kml_polygon(points, color="#3300FF00")  # 20% transparent green
+        file_type_choice = input("Would you like to save a (K)ML, (D)ata File or (B)oth? ").upper()
+        
+        if file_type_choice in ["K", "B"]:
+            kml_polygon = generate_kml_polygon(points, color="#3300FF00")
+            if reference_point:
+                kml_placemark = generate_kml_placemark(*reference_point[:2], name=reference_point[2], description=reference_point[2])
+                kml_content = generate_complete_kml(kml_placemark, kml_polygon)
+            else:
+                kml_content = kml_polygon
+            save_kml_to_file(kml_content)
+            
+        if file_type_choice in ["D", "B"]:
+            print("Data to be saved:", data)  # Add this line to inspect the data
+            save_data_to_file(data, (initial_lat, initial_lon))
 
-        kml_content = kml_polygon  # By default, only the polygon is present
+    return data  # returning data for inspection purposes
 
-        # If there's a monument, generate its KML
-        if reference_point:
-            kml_placemark = generate_kml_placemark(*reference_point[:2], name=reference_point[2], description=reference_point[2])
-            # Combine the placemark and polygon into a complete KML
-            kml_content = generate_complete_kml(kml_placemark, kml_polygon)
-
-        # Save to a .kml file
-        save_kml_to_file(kml_content)
 
 if __name__ == "__main__":
     main()
