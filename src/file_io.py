@@ -168,8 +168,7 @@ def generate_kml_placemark(lat, lon, name="Reference Point", description="Initia
     Returns:
     - str: KML formatted string for the placemark.
     """
-    placemark = f'''
-    <Placemark>
+    placemark = f"""<Placemark>
       <name>{name}</name>
       <description>{description}</description>
       <Point>
@@ -177,52 +176,48 @@ def generate_kml_placemark(lat, lon, name="Reference Point", description="Initia
           {lon},{lat}
         </coordinates>
       </Point>
-    </Placemark>
-    '''
+    </Placemark>"""
     return placemark
+
     
-def generate_complete_kml(placemark, polygon_kml, color="#ffffff"):
+def generate_complete_kml(placemark_kml="", polygon_kml=""):
     """
-    Combine a placemark and polygon into a complete KML document.
-    
-    Parameters:
-    - placemark (str): KML formatted string for the placemark.
-    - polygon_kml (str): KML formatted string for the polygon.
-    - color (str, optional): Color for the polygon.
+    Combine the provided KML placemark and polygon content with the required KML header and footer.
+
+    Args:
+    - placemark_kml (str): KML representation of the placemark.
+    - polygon_kml (str): KML representation of the polygon.
 
     Returns:
-    - str: Complete KML document combining the placemark and polygon.
+    - str: Complete KML content.
     """
-    kml_header = '''<?xml version="1.0" encoding="UTF-8"?>
+    header = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>GPS Polygon and Reference Point</name>
     <description>Polygon from the computed GPS points with reference point</description>
-'''
-    
-    kml_footer = '''  </Document>
-</kml>'''
+"""
 
-    # Combine header, placemark, polygon, and footer to create the complete KML
-    complete_kml = kml_header + placemark + polygon_kml + kml_footer
-
-    return complete_kml
+    footer = """
+  </Document>
+</kml>
+"""
+    return header + placemark_kml + polygon_kml + footer
 
     
-def generate_kml_polygon(points, color="#ffffff"):
+def generate_kml_polygon(points, color="#3300FF00"):
     """
-    Generate a KML polygon from the provided list of points.
-    
-    Parameters:
-    - points (list): List of points (latitude, longitude) to form the polygon.
-    - color (str, optional): Color for the polygon.
+    Generate the KML representation of a polygon using a list of points.
+
+    Args:
+    - points (list of tuple): List of lat-long tuples representing the polygon vertices.
+    - color (str): Color for the polygon fill.
 
     Returns:
-    - str: KML formatted string for the polygon.
+    - str: KML representation of the polygon.
     """
-    
-    # KML polygon header
-    kml_polygon_header = f'''
+    coordinates_str = "\n".join([f"{lon},{lat}" for lat, lon in points])
+    kml = f"""
     <Placemark>
       <name>Polygon</name>
       <Style>
@@ -231,23 +226,22 @@ def generate_kml_polygon(points, color="#ffffff"):
             <width>2</width>
          </LineStyle>
          <PolyStyle>
-            <color>{color[1:]}</color>
+            <color>{color}</color>
          </PolyStyle>
       </Style>
       <Polygon>
         <outerBoundaryIs>
           <LinearRing>
             <coordinates>
-'''
-    
-    # KML polygon footer
-    kml_polygon_footer = '''
+{coordinates_str}
             </coordinates>
           </LinearRing>
         </outerBoundaryIs>
       </Polygon>
     </Placemark>
-'''
+    """
+    return kml
+
 
     # Ordering points to form a polygon
     ordered_points = order_points(points)
@@ -255,71 +249,3 @@ def generate_kml_polygon(points, color="#ffffff"):
     coordinates_str = "\n".join([f"{lon},{lat}" for lat, lon in ordered_points])
 
     return kml_polygon_header + coordinates_str + kml_polygon_footer
-
-def tzt_to_kml(tzt_content):
-    """
-    Converts a given .tzt formatted string to a .kml formatted string.
-    
-    Parameters:
-    - tzt_content (str): The content of the .tzt file.
-    
-    Returns:
-    - str: The generated .kml content.
-    """
-    
-    # Splitting the content into lines and initializing data storage
-    lines = tzt_content.strip().split("\n")
-    data = {
-        'initial': {},
-        'monument': {},
-        'polygon': []
-    }
-    
-    # Parsing the .tzt file
-    section = None
-    for line in lines:
-        try:
-            if "[INITIAL]" in line:
-                section = 'initial'
-            elif "[MONUMENT]" in line:
-                section = 'monument'
-            elif "[POLYGON]" in line:
-                section = 'polygon'
-            elif section == 'initial':
-                key, value = line.split(":")
-                data['initial'][key.strip().lower()] = float(value.strip())
-            elif section == 'monument' and "Label" not in line:
-                key, value = line.split(":")
-                data['monument'][key.strip().lower()] = float(value.strip()) if "Latitude" in key or "Longitude" in key else value.strip()
-            elif section == 'polygon':
-                point_data = {}
-                parts = line.split(",")
-                for part in parts:
-                    key, value = part.split(":")
-                    if "Latitude" in key or "Longitude" in key:
-                        point_data[key.strip().lower()] = float(value.strip())
-                data['polygon'].append(point_data)
-        except ValueError:
-            print(f"Error parsing line: {line}")
-    
-    # Generating KML for the initial point and monument
-    initial_lat = data['initial']['latitude']
-    initial_lon = data['initial']['longitude']
-    
-    initial_placemark = generate_kml_initial_point(initial_lat, initial_lon)
-    
-    monument_lat = data['monument']['latitude']
-    monument_lon = data['monument']['longitude']
-    
-    monument_placemark = generate_kml_placemark(monument_lat, monument_lon, name=data['monument']['label'], description=data['monument']['label'])
-    
-    # Generating KML for the polygon
-    polygon_coords = [(point['latitude'], point['longitude']) for point in data['polygon']]
-    
-    polygon_kml = generate_kml_polygon(polygon_coords)
-    
-    # Combining the KML segments
-    complete_kml = generate_complete_kml(initial_placemark + monument_placemark, polygon_kml)
-    
-    return complete_kml
-
