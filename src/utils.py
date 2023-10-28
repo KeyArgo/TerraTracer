@@ -81,7 +81,7 @@ def parse_and_convert_dms_to_dd(dms_str, coordinate_name):
         dd = -dd
         
     return primary_direction, dd
-            
+
 def parse_and_convert_dms_to_dd_survey(dms_str, coordinate_name):
     """
     Parses a DMS formatted string in land survey notation and returns the bearing in decimal degrees.
@@ -119,7 +119,6 @@ def parse_and_convert_dms_to_dd_survey(dms_str, coordinate_name):
     elif start_direction == "S" and turn_direction == "W":
         bearing = 180 + dd
     else:
-        print(f"Start Direction: {start_direction}, Turn Direction: {turn_direction}")  # Debug print
         raise ValueError("Invalid combination of starting and turning directions.")
     
     return bearing
@@ -135,6 +134,12 @@ def parse_dd_or_dms():
 
     if format_choice == "1":
         orientation = input("Enter starting orientation (N, S, E, W): ").upper()
+        
+        # Check the orientation immediately
+        if orientation not in ["N", "S", "E", "W"]:
+            print("Invalid orientation.")
+            return None
+
         dd_value = float(input("Enter direction in decimal degrees (e.g., 68.0106): "))
 
         if orientation == "N":
@@ -145,9 +150,6 @@ def parse_dd_or_dms():
             bearing = 90 + dd_value
         elif orientation == "W":
             bearing = 270 + dd_value
-        else:
-            print("Invalid orientation.")
-            return None
 
         if 0 <= bearing <= 360:
             return bearing
@@ -156,9 +158,16 @@ def parse_dd_or_dms():
             return None
 
     elif format_choice == "2":
-        dms_direction = input("Enter direction in DMS format (e.g., N 68° 00' 38\"): ")
+        dms_direction = input(
+            "Enter direction in DMS format. Examples:\n"
+            "- N 68° 00' 38\" E\n"
+            "- N 68 degrees 0' 38\" E\n"
+            "- n 68 0 38 e\n\n"
+            "Your input: "
+        )
         if " " in dms_direction:  # Check for space to differentiate between land survey and typical GPS
             bearing = parse_and_convert_dms_to_dd_survey(dms_direction, "direction")
+
         else:
             direction, bearing = parse_and_convert_dms_to_dd(dms_direction, "direction")
             if direction is None:

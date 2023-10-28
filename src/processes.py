@@ -1,5 +1,4 @@
 # Standard library imports
-import math
 import os
 import re
 
@@ -7,18 +6,16 @@ import re
 from geopy.distance import distance as geopy_distance
 from geopy.point import Point
 from geographiclib.geodesic import Geodesic
-from scipy.spatial import ConvexHull
 
 # Local module imports
-from utils import (validate_dms, get_coordinate_in_dd_or_dms, 
-                   parse_and_convert_dms_to_dd, parse_and_convert_dms_to_dd_survey, 
+from utils import (get_coordinate_in_dd_or_dms, 
                    parse_dd_or_dms, is_polygon_close_to_being_closed, 
                    check_polygon_closure)
 from computation import (compute_gps_coordinates_spherical, 
                          compute_gps_coordinates_vincenty, 
                          compute_gps_coordinates_karney, 
-                         average_methods, calculate_distance)
-from file_io import (save_data_to_file, save_kml_to_file, order_points, 
+                         average_methods)
+from file_io import (save_data_to_file, save_kml_to_file, 
                      generate_kml_placemark, generate_complete_kml, 
                      generate_kml_polygon)
 
@@ -79,12 +76,19 @@ def get_computation_method():
     Returns:
     - int: User's choice of computation method.
     """
-    print("Choose a method:")
-    print("1) Karney's Method")
-    print("2) Vincenty's Method")
-    print("3) Spherical Model")
-    print("4) Average all models/methods")
-    return int(input("Enter choice (1/2/3/4): "))
+    while True:
+        try:
+            print("Choose a method:")
+            print("1) Karney's Method")
+            print("2) Vincenty's Method")
+            print("3) Spherical Model")
+            print("4) Average all models/methods")
+            choice = int(input("Enter choice (1/2/3/4): "))
+            if choice not in [1, 2, 3, 4]:
+                raise ValueError("Invalid choice. Please select 1, 2, 3, or 4.")
+            return choice
+        except ValueError as e:
+            print(e)
 
 
 def get_num_points_to_compute():
@@ -93,7 +97,12 @@ def get_num_points_to_compute():
     Returns:
     - int: Number of points the user wants to compute.
     """
-    return int(input("How many points would you like to compute? "))
+    while True:
+        try:
+            num_points = int(input("How many points would you like to compute? "))
+            return num_points
+        except ValueError:
+            print("Invalid input. Please enter a valid number.")
 
 
 def get_bearing_and_distance():
@@ -102,11 +111,17 @@ def get_bearing_and_distance():
     Returns:
     - tuple: Bearing and distance provided by the user.
     """
-    bearing = parse_dd_or_dms()
-    distance = None
-    if bearing is not None:
-        distance = float(input("Enter distance in feet: ").replace(',', ''))
-    return bearing, distance
+    while True:
+        try:
+            bearing = parse_dd_or_dms()
+            if bearing is None:
+                raise ValueError("Invalid input for bearing.")
+            
+            distance = float(input("Enter distance in feet: ").replace(',', ''))
+            return bearing, distance
+        except ValueError:
+            print("Invalid input. Please enter valid values for bearing and distance.")
+            continue
 
 
 def get_add_point_decision():
@@ -130,16 +145,20 @@ def compute_point_based_on_method(choice, lat, lon, bearing, distance):
     Returns:
     - tuple: Computed latitude and longitude.
     """
-    if choice == 1:
-        return compute_gps_coordinates_karney(lat, lon, bearing, distance)
-    elif choice == 2:
-        return compute_gps_coordinates_vincenty(lat, lon, bearing, distance)
-    elif choice == 3:
-        return compute_gps_coordinates_spherical(lat, lon, bearing, distance)
-    elif choice == 4:
-        return average_methods(lat, lon, bearing, distance)
-    else:
-        print("Invalid method choice.")
+    try:
+        if choice == 1:
+            return compute_gps_coordinates_karney(lat, lon, bearing, distance)
+        elif choice == 2:
+            return compute_gps_coordinates_vincenty(lat, lon, bearing, distance)
+        elif choice == 3:
+            return compute_gps_coordinates_spherical(lat, lon, bearing, distance)
+        elif choice == 4:
+            return average_methods(lat, lon, bearing, distance)
+        else:
+            print("Invalid method choice.")
+            return None, None
+    except Exception as e:
+        print(f"An error occurred while computing the point: {e}")
         return None, None
 
 
@@ -324,10 +343,18 @@ def create_kml_process():
             else:
                 kml_content = generate_complete_kml(polygon_kml=kml_polygon)
             
-            save_kml_to_file(kml_content)
+            try:
+                save_kml_to_file(kml_content)
+                print("KML file saved successfully!")
+            except Exception as e:
+                print(f"An error occurred while saving the KML file: {e}")
 
         if file_type_choice in ["D", "B"]:
-            # For the TZT file, use the original list of points.
-            save_data_to_file(data, (data["initial"]["lat"], data["initial"]["lon"]))
+            try:
+                # For the TZT file, use the original list of points.
+                save_data_to_file(data, (data["initial"]["lat"], data["initial"]["lon"]))
+                print("Data file saved successfully!")
+            except Exception as e:
+                print(f"An error occurred while saving the data file: {e}")
 
     return data  # returning data for inspection purposes

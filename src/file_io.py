@@ -1,68 +1,77 @@
 import os
 from scipy.spatial import ConvexHull
 
-def save_data_to_file(data_content, initial_coords, monument=None):
-    """
-    Save the provided data content into a file.
-    
-    Parameters:
-    - data_content (dict): The content to be saved, including initial point, monument details, and polygon points.
-    - initial_coords (tuple): The initial latitude and longitude coordinates.
-    - monument (dict, optional): Details of the monument if it exists.
-
-    Note:
-    The file format is .tzt and the user can specify the directory and filename.
-    """
-    # Default directory and filename
+def get_filepath():
     default_directory = os.getcwd()
     default_filename = "output.tzt"
-
-    # Taking input for directory and filename to save the file
-    directory = input(f"Enter the directory to save the Data file (default is {default_directory}): ")
-    filename = input(f"Enter the filename for the Data file (default is {default_filename}): ")
-
-    # If no directory/filename provided, use the default
-    directory = directory if directory else default_directory
-    filename = filename if filename else default_filename
-
-    # Ensure the filename has the correct extension
+    directory = input(f"Enter the directory to save the Data file (default is {default_directory}): ") or default_directory
+    filename = input(f"Enter the filename for the Data file (default is {default_filename}): ") or default_filename
     if not filename.endswith(".tzt"):
         filename += ".tzt"
+    return os.path.join(directory, filename)
 
-    full_path = os.path.join(directory, filename)
 
-    # Create the directory if it doesn't exist
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+def write_initial_coordinates(file, initial):
+    file.write("[INITIAL]\n")
+    file.write(f"Latitude: {initial.get('lat', ''):.6f}\n")
+    file.write(f"Longitude: {initial.get('lon', ''):.6f}\n\n")
 
-    # Writing the data into the file
-    with open(full_path, 'w') as file:
-        # Write initial coordinates
-        file.write("[INITIAL]\n")
-        initial = data_content.get('initial', {})
-        file.write(f"Latitude: {initial.get('lat', ''):.6f}\n")
-        file.write(f"Longitude: {initial.get('lon', ''):.6f}\n\n")
-        
-        # If a monument exists, write its details
-        monument = data_content.get('monument', {})
-        if monument:
-            file.write("[MONUMENT]\n")
-            file.write(f"Label: {monument.get('label', '')}\n")
-            file.write(f"Latitude: {monument.get('lat', ''):.6f}\n")
-            file.write(f"Longitude: {monument.get('lon', ''):.6f}\n\n")
-        
-        # Write polygon points, bearing, and distance
-        file.write("[POLYGON]\n")
-        for i, point in enumerate(data_content.get('polygon', [])):
-            lat = point.get('lat', 0)
-            lon = point.get('lon', 0)
-            bearing = point.get('bearing_from_prev', 0)
-            distance = point.get('distance_from_prev', 0)
-            file.write(f"Point {i+1}: Latitude: {lat:.6f}, Longitude: {lon:.6f}, ")
-            file.write(f"Bearing from Previous: {bearing:.2f}°, Distance from Previous: {distance:.2f} ft\n")
- 
-    # Inform the user about the saved file location 
-    print(f"Data file saved at {full_path}")
+
+def write_monument_details(file, monument):
+    if monument:
+        file.write("[MONUMENT]\n")
+        file.write(f"Label: {monument.get('label', '')}\n")
+        file.write(f"Latitude: {monument.get('lat', ''):.6f}\n")
+        file.write(f"Longitude: {monument.get('lon', ''):.6f}\n\n")
+
+
+def write_polygon_details(file, polygon):
+    file.write("[POLYGON]\n")
+    for i, point in enumerate(polygon):
+        lat = point.get('lat', 0)
+        lon = point.get('lon', 0)
+        bearing = point.get('bearing_from_prev', 0)
+        distance = point.get('distance_from_prev', 0)
+        file.write(f"Point {i+1}: Latitude: {lat:.6f}, Longitude: {lon:.6f}, ")
+        file.write(f"Bearing from Previous: {bearing:.2f}°, Distance from Previous: {distance:.2f} ft\n")
+
+
+def save_data_to_file(data_content, initial_coords, monument=None):
+    full_path = get_filepath()
+    
+    # Check data structure
+    if not isinstance(data_content, dict) or not all(key in data_content for key in ['initial', 'polygon']):
+        print("Error: Invalid data structure or missing data.")
+        return
+
+    try:
+        if not os.path.exists(os.path.dirname(full_path)):
+            os.makedirs(os.path.dirname(full_path))
+    except PermissionError:
+        print(f"Error: No permission to create directory at {os.path.dirname(full_path)}")
+        return
+    except Exception as e:
+        print(f"Error creating directory: {e}")
+        return
+
+    try:
+        with open(full_path, 'w') as file:
+            write_initial_coordinates(file, data_content.get('initial', {}))
+
+            # Explicitly check if 'monument' key exists in the dictionary
+            if 'monument' in data_content and data_content['monument']:
+                write_monument_details(file, data_content['monument'])
+
+            write_polygon_details(file, data_content.get('polygon', []))
+
+        print(f"Data file saved at {full_path}")
+    except PermissionError:
+        print(f"Error: No permission to write to {full_path}")
+    except IOError:
+        print(f"Error: Unable to write to {full_path}. The file might be in use.")
+    except Exception as e:
+        print(f"Error writing to file: {e}")
+
     
 def save_kml_to_file(kml_content):
     """
@@ -105,6 +114,7 @@ def save_kml_to_file(kml_content):
     # Inform the user about the saved file location
     print(f"KML file saved at {full_path}")
     
+
 def order_points(points):
     """
     Order the provided points to form a convex hull.
@@ -130,6 +140,7 @@ def order_points(points):
     hull = ConvexHull(unique_points)
     return [unique_points[i] for i in hull.vertices]
 
+
 def generate_kml_initial_point(lat, lon, name="Initial Point"):
     """
     Generate a KML placemark for the initial point or monument.
@@ -154,6 +165,7 @@ def generate_kml_initial_point(lat, lon, name="Initial Point"):
     </Placemark>
 '''
     return kml_placemark
+
 
 def generate_kml_placemark(lat, lon, name="Reference Point", description="Initial Reference Point"):
     """
