@@ -1,3 +1,10 @@
+"""
+utils.py
+
+Utility functions that offer general-purpose tools and transformations. Includes:
+- Data transformations between TZT and KML formats.
+"""
+
 import re
 from geopy.distance import distance as geopy_distance
 
@@ -205,3 +212,31 @@ def check_polygon_closure(points, reference_point=None):
         else:
             return distance_between_first_and_last <= 10
     return False
+
+def transform_tzt_data_to_kml_format(parsed_data):
+    data = {
+        'initial': {
+            'lat': float(parsed_data['initial']['latitude']),
+            'lon': float(parsed_data['initial']['longitude'])
+        },
+        'monument': {
+            'label': parsed_data['monument']['label'],
+            'lat': float(parsed_data['monument']['latitude']),
+            'lon': float(parsed_data['monument']['longitude']),
+            'bearing_from_prev': float(parsed_data['monument']['bearing from previous'].split('°')[0]),
+            'distance_from_prev': float(parsed_data['monument']['distance from previous'].split(' ')[0])
+        },
+        'polygon': []
+    }
+
+    for key, value in parsed_data['polygon'].items():
+        if 'latitude' in key:
+            point = {
+                'lat': float(value),
+                'lon': float(parsed_data['polygon'][f'longitude {key.split()[-1]}']),
+                'bearing_from_prev': float(parsed_data['polygon'][f'bearing from previous {key.split()[-1]}'].split('°')[0]),
+                'distance_from_prev': float(parsed_data['polygon'][f'distance from previous {key.split()[-1]}'].split(' ')[0])
+            }
+            data['polygon'].append(point)
+
+    return data

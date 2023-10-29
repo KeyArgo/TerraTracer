@@ -1,9 +1,18 @@
+"""
+computation.py
+
+Functions that handle data computations, transformations, and general operations. Contains:
+- Ordering points to form polygons.
+- Generating KML representations from TZT data.
+"""
+
 # Standard library imports
 import math
 
 # Third-party library imports
 from geopy.point import Point
 from geographiclib.geodesic import Geodesic
+from scipy.spatial import ConvexHull
 
 # Spherical Model
 def compute_gps_coordinates_spherical(lat, long, bearing, distance):
