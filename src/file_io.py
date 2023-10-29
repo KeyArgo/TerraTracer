@@ -1,68 +1,136 @@
+"""
+file_io.py
+
+This module provides functions related to file input and output operations, including:
+- Retrieving file paths from the user.
+- Writing data in the TZT format to files.
+- Saving KML formatted data to files.
+- Parsing TZT formatted files.
+"""
+
 import os
 from scipy.spatial import ConvexHull
 
-def save_data_to_file(data_content, initial_coords, monument=None):
-    """
-    Save the provided data content into a file.
-    
-    Parameters:
-    - data_content (dict): The content to be saved, including initial point, monument details, and polygon points.
-    - initial_coords (tuple): The initial latitude and longitude coordinates.
-    - monument (dict, optional): Details of the monument if it exists.
-
-    Note:
-    The file format is .tzt and the user can specify the directory and filename.
-    """
-    # Default directory and filename
+def get_filepath():
     default_directory = os.getcwd()
     default_filename = "output.tzt"
-
-    # Taking input for directory and filename to save the file
-    directory = input(f"Enter the directory to save the Data file (default is {default_directory}): ")
-    filename = input(f"Enter the filename for the Data file (default is {default_filename}): ")
-
-    # If no directory/filename provided, use the default
-    directory = directory if directory else default_directory
-    filename = filename if filename else default_filename
-
-    # Ensure the filename has the correct extension
+    directory = input(f"Enter the directory to save the Data file (default is {default_directory}): ") or default_directory
+    filename = input(f"Enter the filename for the Data file (default is {default_filename}): ") or default_filename
     if not filename.endswith(".tzt"):
         filename += ".tzt"
+    return os.path.join(directory, filename)
 
-    full_path = os.path.join(directory, filename)
 
-    # Create the directory if it doesn't exist
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+def write_initial_coordinates(file, initial):
+    print(f"Type of lat in initial: {type(initial.get('lat'))}")
+    print(f"Type of lon in initial: {type(initial.get('lon'))}")
+    file.write("[INITIAL]\n")
+    file.write(f"Latitude: {initial.get('lat', ''):.6f}\n")
+    file.write(f"Longitude: {initial.get('lon', ''):.6f}\n\n")
 
-    # Writing the data into the file
-    with open(full_path, 'w') as file:
-        # Write initial coordinates
-        file.write("[INITIAL]\n")
-        initial = data_content.get('initial', {})
-        file.write(f"Latitude: {initial.get('lat', ''):.6f}\n")
-        file.write(f"Longitude: {initial.get('lon', ''):.6f}\n\n")
+
+def write_monument_details(file, monument):
+    if monument and monument.get('lat') is not None and monument.get('lon') is not None:
+        file.write("[MONUMENT]\n")
+        file.write(f"Label: {monument.get('label', '')}\n")
+        file.write(f"Latitude: {float(monument.get('lat', '0')):.6f}\n")
+        file.write(f"Longitude: {float(monument.get('lon', '0')):.6f}\n")
+        if monument.get('bearing_from_prev') is not None:
+            file.write(f"Bearing from Previous: {float(monument.get('bearing_from_prev')):.2f}°\n")
+        if monument.get('distance_from_prev') is not None:
+            file.write(f"Distance from Previous: {float(monument.get('distance_from_prev')):.2f} ft\n\n")
         
-        # If a monument exists, write its details
-        monument = data_content.get('monument', {})
-        if monument:
-            file.write("[MONUMENT]\n")
-            file.write(f"Label: {monument.get('label', '')}\n")
-            file.write(f"Latitude: {monument.get('lat', ''):.6f}\n")
-            file.write(f"Longitude: {monument.get('lon', ''):.6f}\n\n")
-        
-        # Write polygon points, bearing, and distance
-        file.write("[POLYGON]\n")
-        for i, point in enumerate(data_content.get('polygon', [])):
-            lat = point.get('lat', 0)
-            lon = point.get('lon', 0)
-            bearing = point.get('bearing_from_prev', 0)
-            distance = point.get('distance_from_prev', 0)
-            file.write(f"Point {i+1}: Latitude: {lat:.6f}, Longitude: {lon:.6f}, ")
-            file.write(f"Bearing from Previous: {bearing:.2f}°, Distance from Previous: {distance:.2f} ft\n")
- 
-    # Inform the user about the saved file location 
-    print(f"Data file saved at {full_path}")
+
+def write_polygon_details(file, polygon):
+    file.write("[POLYGON]\n")
+    for i, point in enumerate(polygon):
+        print(f"Type of lat in polygon point {i+1}: {type(point.get('lat'))}")
+        print(f"Type of lon in polygon point {i+1}: {type(point.get('lon'))}")
+        print(f"Type of bearing_from_prev in polygon point {i+1}: {type(point.get('bearing_from_prev'))}")
+        print(f"Type of distance_from_prev in polygon point {i+1}: {type(point.get('distance_from_prev'))}")
+        file.write(f"Point {i+1}:\n")
+        file.write(f"Latitude: {point.get('lat', 0):.6f}\n")
+        file.write(f"Longitude: {point.get('lon', 0):.6f}\n")
+        file.write(f"Bearing from Previous: {point.get('bearing_from_prev', 0):.2f}°\n")
+        file.write(f"Distance from Previous: {point.get('distance_from_prev', 0):.2f} ft\n\n")
+
+
+def parse_tzt_file(filepath):
+    """
+    Parse the content of a .tzt file and return the data in a structured format.
+
+    Args:
+    - filepath (str): Path to the .tzt file.
+
+    Returns:
+    - dict: Parsed data from the .tzt file.
+    """
+    data = {}
+    current_section = None
+
+    try:
+        with open(filepath, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                line = line.strip()
+                if not line:  # Skip empty lines
+                    continue
+                if line.startswith("[") and line.endswith("]"):  # New section
+                    current_section = line[1:-1].lower()
+                    data[current_section] = {}
+                else:
+                    key, value = line.split(":")
+                    key = key.strip().lower()
+                    value = value.strip()
+                    data[current_section][key] = value
+    except FileNotFoundError:
+        print(f"Error: {filepath} not found.")
+        return None
+    except Exception as e:
+        print(f"Error parsing the .tzt file: {e}")
+        return None
+
+    return data
+
+
+def save_data_to_file(data_content):
+    full_path = get_filepath()
+    
+    # Check data structure
+    if not isinstance(data_content, dict) or not all(key in data_content for key in ['initial', 'polygon']):
+        print("Error: Invalid data structure or missing data.")
+        return
+
+    try:
+        if not os.path.exists(os.path.dirname(full_path)):
+            os.makedirs(os.path.dirname(full_path))
+    except PermissionError:
+        print(f"Error: No permission to create directory at {os.path.dirname(full_path)}")
+        return
+    except Exception as e:
+        print(f"Error creating directory: {e}")
+        return
+
+    try:
+        with open(full_path, 'w') as file:
+            # Write the initial coordinates
+            write_initial_coordinates(file, data_content.get('initial', {}))
+
+            # Write the monument details if they exist
+            if 'monument' in data_content and data_content['monument']:
+                write_monument_details(file, data_content['monument'])
+
+            # Write the polygon details
+            write_polygon_details(file, data_content.get('polygon', []))
+
+        print(f"Data file saved at {full_path}")
+    except PermissionError:
+        print(f"Error: No permission to write to {full_path}")
+    except IOError:
+        print(f"Error: Unable to write to {full_path}. The file might be in use.")
+    except Exception as e:
+        print(f"Error writing to file: {e}")
+
     
 def save_kml_to_file(kml_content):
     """
@@ -105,6 +173,7 @@ def save_kml_to_file(kml_content):
     # Inform the user about the saved file location
     print(f"KML file saved at {full_path}")
     
+
 def order_points(points):
     """
     Order the provided points to form a convex hull.
@@ -130,6 +199,7 @@ def order_points(points):
     hull = ConvexHull(unique_points)
     return [unique_points[i] for i in hull.vertices]
 
+
 def generate_kml_initial_point(lat, lon, name="Initial Point"):
     """
     Generate a KML placemark for the initial point or monument.
@@ -143,6 +213,9 @@ def generate_kml_initial_point(lat, lon, name="Initial Point"):
     - str: KML formatted string for the placemark.
     """
 
+    if lat is None or lon is None:  # Check if the coordinates are valid
+        return ""  # Return an empty string if the coordinates are invalid
+
     kml_placemark = f'''
     <Placemark>
       <name>{name}</name>
@@ -152,8 +225,9 @@ def generate_kml_initial_point(lat, lon, name="Initial Point"):
         </coordinates>
       </Point>
     </Placemark>
-'''
+    '''
     return kml_placemark
+
 
 def generate_kml_placemark(lat, lon, name="Reference Point", description="Initial Reference Point"):
     """
