@@ -9,15 +9,22 @@ This module provides functions related to file input and output operations, incl
 """
 
 import os
+import json
 from scipy.spatial import ConvexHull
 
-def get_filepath():
+def read_tzt_file(filepath):
+    with open(filepath, 'r') as file:
+        content = file.read()
+    return content
+
+
+def get_filepath(extension=".json"):
     default_directory = os.getcwd()
-    default_filename = "output.tzt"
+    default_filename = f"output{extension}"
     directory = input(f"Enter the directory to save the Data file (default is {default_directory}): ") or default_directory
     filename = input(f"Enter the filename for the Data file (default is {default_filename}): ") or default_filename
-    if not filename.endswith(".tzt"):
-        filename += ".tzt"
+    if not filename.endswith(extension):
+        filename += extension
     return os.path.join(directory, filename)
 
 
@@ -55,19 +62,7 @@ def write_polygon_details(file, polygon):
         file.write(f"Distance from Previous: {point.get('distance_from_prev', 0):.2f} ft\n\n")
 
 
-def parse_tzt_file(filepath):
-    """
-    Parse the content of a .tzt file and return the data in a structured format.
-
-    Args:
-    - filepath (str): Path to the .tzt file.
-
-    Returns:
-    - dict: Parsed data from the .tzt file.
-    """
-    data = {}
-    current_section = None
-
+def load_data_from_json(filepath):
     try:
         with open(filepath, 'r') as file:
             lines = file.readlines()
@@ -93,41 +88,28 @@ def parse_tzt_file(filepath):
     return data
 
 
-def save_data_to_file(data_content):
-    full_path = get_filepath()
-    
-    # Check data structure
+def save_data_to_json(data_content):
+    # Ensure the data has the expected keys
     if not isinstance(data_content, dict) or not all(key in data_content for key in ['initial', 'polygon']):
         print("Error: Invalid data structure or missing data.")
         return
 
-    try:
-        if not os.path.exists(os.path.dirname(full_path)):
-            os.makedirs(os.path.dirname(full_path))
-    except PermissionError:
-        print(f"Error: No permission to create directory at {os.path.dirname(full_path)}")
-        return
-    except Exception as e:
-        print(f"Error creating directory: {e}")
-        return
+    # If units aren't specified, default to imperial
+    if 'units' not in data_content:
+        data_content['units'] = 'imperial'
+
+    default_directory = os.getcwd()
+    default_filename = "output.json"
+    directory = input(f"Enter the directory to save the Data file (default is {default_directory}): ") or default_directory
+    filename = input(f"Enter the filename for the Data file (default is {default_filename}): ") or default_filename
+    if not filename.endswith(".json"):
+        filename += ".json"
+    full_path = os.path.join(directory, filename)
 
     try:
         with open(full_path, 'w') as file:
-            # Write the initial coordinates
-            write_initial_coordinates(file, data_content.get('initial', {}))
-
-            # Write the monument details if they exist
-            if 'monument' in data_content and data_content['monument']:
-                write_monument_details(file, data_content['monument'])
-
-            # Write the polygon details
-            write_polygon_details(file, data_content.get('polygon', []))
-
+            json.dump(data_content, file, indent=4)
         print(f"Data file saved at {full_path}")
-    except PermissionError:
-        print(f"Error: No permission to write to {full_path}")
-    except IOError:
-        print(f"Error: Unable to write to {full_path}. The file might be in use.")
     except Exception as e:
         print(f"Error writing to file: {e}")
 

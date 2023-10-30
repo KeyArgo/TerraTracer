@@ -130,16 +130,16 @@ def parse_and_convert_dms_to_dd_survey(dms_str, coordinate_name):
     
     return bearing
     
-def parse_dd_or_dms():
+    
+def parse_dd_or_dms(coordinate_format):
     """
-    Prompts the user to enter direction in either decimal degrees (DD) or degrees, minutes, seconds (DMS) format.
+    Process the user's input for direction based on the provided format (either DD or DMS).
 
     Returns:
     - float: Bearing in decimal degrees.
     """
-    format_choice = input("Enter direction format (1 for DD, 2 for DMS): ")
 
-    if format_choice == "1":
+    if coordinate_format == "1":  # DD format
         orientation = input("Enter starting orientation (N, S, E, W): ").upper()
         
         # Check the orientation immediately
@@ -164,7 +164,7 @@ def parse_dd_or_dms():
             print("Invalid DD value. Must be between 0 and 360.")
             return None
 
-    elif format_choice == "2":
+    elif coordinate_format == "2":  # DMS format
         dms_direction = input(
             "Enter direction in DMS format. Examples:\n"
             "- N 68° 00' 38\" E\n"
@@ -179,7 +179,7 @@ def parse_dd_or_dms():
             direction, bearing = parse_and_convert_dms_to_dd(dms_direction, "direction")
             if direction is None:
                 print("Invalid DMS string format. Please try again.")
-                return parse_dd_or_dms()  # Recursively ask for input again
+                return parse_dd_or_dms(coordinate_format)  # Recursively ask for input again, passing in the format
             if direction == "S":
                 bearing = 180 + bearing
             elif direction == "W":
@@ -187,8 +187,9 @@ def parse_dd_or_dms():
         return bearing
 
     else:
-        print("Invalid choice.")
+        print("Invalid format passed to the function.")
         return None
+
             
 def is_polygon_close_to_being_closed(points, threshold=20):
     for i in range(len(points) - 1):  # Exclude the last point itself
@@ -197,6 +198,7 @@ def is_polygon_close_to_being_closed(points, threshold=20):
             return True
     return False
     
+
 def check_polygon_closure(points, reference_point=None):
     if len(points) > 2:
         distance_between_first_and_last = geopy_distance(points[0], points[-1]).feet
