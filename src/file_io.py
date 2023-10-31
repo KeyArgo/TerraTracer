@@ -88,72 +88,31 @@ def load_data_from_json(filepath):
     return data
 
 
-def save_data_to_json(data_content):
-    # Ensure the data has the expected keys
-    if not isinstance(data_content, dict) or not all(key in data_content for key in ['initial', 'polygon']):
-        print("Error: Invalid data structure or missing data.")
-        return
+def save_kml_to_file(kml_content, full_path):
+    """Save the provided KML content into a file."""
+    # Ensure the directory exists or create it
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
-    # If units aren't specified, default to imperial
-    if 'units' not in data_content:
-        data_content['units'] = 'imperial'
+    # Save the KML content to the specified file
+    try:
+        with open(full_path, 'w') as file:
+            file.write(kml_content)
+        print(f"KML file saved at {full_path}")
+    except Exception as e:
+        print(f"Error writing to file: {e}")
 
-    default_directory = os.getcwd()
-    default_filename = "output.json"
-    directory = input(f"Enter the directory to save the Data file (default is {default_directory}): ") or default_directory
-    filename = input(f"Enter the filename for the Data file (default is {default_filename}): ") or default_filename
-    if not filename.endswith(".json"):
-        filename += ".json"
-    full_path = os.path.join(directory, filename)
+def save_data_to_json(data_content, full_path):
+    """Save the provided data as a JSON file."""
+    # Ensure the directory exists or create it
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
+    # Save the data to the specified file
     try:
         with open(full_path, 'w') as file:
             json.dump(data_content, file, indent=4)
         print(f"Data file saved at {full_path}")
     except Exception as e:
         print(f"Error writing to file: {e}")
-
-    
-def save_kml_to_file(kml_content):
-    """
-    Save the provided KML content into a file.
-    
-    Parameters:
-    - kml_content (str): The KML content to be saved.
-
-    Note:
-    The user can specify the directory and filename for the KML file.
-    """
-
-    # Default directory and filename
-    default_directory = os.getcwd()  # This gets the current working directory
-    default_filename = "output.kml"
-
-    # Ask the user for directory and filename to save the KML file
-    directory = input(f"Enter the directory to save the KML file (default is {default_directory}): ")
-    filename = input(f"Enter the filename for the KML file (default is {default_filename}): ")
-
-    # If no directory/filename provided, use the default values
-    directory = directory if directory else default_directory
-    filename = filename if filename else default_filename
-
-    # Ensure the filename has the correct extension
-    if not filename.endswith(".kml"):
-        filename += ".kml"
-
-    # Get the full path for the file
-    full_path = os.path.join(directory, filename)
-
-    # Create the directory if it doesn't exist
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    # Save the KML content to the specified file
-    with open(full_path, 'w') as file:
-        file.write(kml_content)
-
-    # Inform the user about the saved file location
-    print(f"KML file saved at {full_path}")
     
 
 def order_points(points):
