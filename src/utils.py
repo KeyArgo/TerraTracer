@@ -139,6 +139,11 @@ def parse_dd_or_dms(coordinate_format):
     - float: Bearing in decimal degrees.
     """
 
+    # Prompt the user for a valid coordinate_format if it's None or not "1" or "2"
+    while coordinate_format not in ["1", "2"]:
+        print("Please specify the coordinate format: (1 for DD, 2 for DMS)")
+        coordinate_format = input()
+
     if coordinate_format == "1":  # DD format
         orientation = input("Enter starting orientation (N, S, E, W): ").upper()
         
