@@ -8,16 +8,31 @@ and handles user choices related to the main workflow.
 from utils import (get_coordinate_in_dd_or_dms, parse_dd_or_dms)
 
 def get_coordinate_format_only():
-    """
-    Prompt the user to choose between DD and DMS format for coordinates input.
-    Returns:
-    - str: User's choice of coordinate format (either "1" or "2").
-    """
+    """Prompt the user to select a coordinate format."""
     while True:
-        coordinate_format = input("Enter coordinates format (1 for DD, 2 for DMS): ")
-        if coordinate_format in ["1", "2"]:
-            return coordinate_format
+        print("\n---------- Coordinate Format Selection ----------")
+        print("1. Decimal Degrees (DD)")
+        print("2. Degrees, Minutes, Seconds (DMS)")
+        choice = input("Enter your choice (1/2): ")
+        if choice in ["1", "2"]:
+            return choice
+        print("Invalid choice. Please enter 1 or 2.")
+
+
+
+def get_tie_point_coordinate_format():
+    """
+    Ask the user to specify the coordinate format they wish to use for the tie point.
+    Returns the choice as a string ("1" for DD, "2" for DMS).
+    """
+    
+    print("\n---------- Tie Point Coordinate Format Selection ----------")
+    
+    choice = input("Enter Tie Point coordinates format (1 for DD, 2 for DMS): ")
+    while choice not in ["1", "2"]:
         print("Invalid choice. Please select 1 for DD or 2 for DMS.")
+        choice = input("Enter Tie Point coordinates format (1 for DD, 2 for DMS): ")
+    return choice
 
 
 def ask_use_same_format_for_all():
@@ -61,15 +76,19 @@ def get_coordinate_use_choice():
 
 
 def get_point_use_choice():
-    """
-    Ask user how they'd like to use the initial point.
-    Returns:
-    - str: User's choice on how to use the initial point.
-    """
-    print("\nDo you want the initial point to be:")
-    print("1) A Monument (will become a placemark).")
-    print("2) First Point of the Polygon (no placemark).")
-    return input("Enter choice (1/2): ")
+    """Intermediary menu after the user selects "1" from the main menu."""
+    while True:
+        print("\nChoose an option:")
+        print("1) Use a Tie Point")
+        print("2) Specify the placement of the first point in the polygon")
+        choice = input("Enter your choice (1/2): ")
+        if choice == "1":
+            return "1"
+        elif choice == "2":
+            print("This feature will be added in the future.")
+            continue
+        else:
+            print("Invalid choice. Please select either 1 or 2.")  
 
 
 def get_computation_method():
@@ -121,7 +140,8 @@ def get_bearing_and_distance(coordinate_format):
             
             distance = float(input("Enter distance in feet: ").replace(',', ''))
             return bearing, distance
-        except ValueError:
+
+        except ValueError as e:
             print("Invalid input. Please enter valid values for bearing and distance.")
             continue
 
