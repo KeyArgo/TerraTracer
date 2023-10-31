@@ -34,18 +34,28 @@ from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 
 # Local module imports
-from utils import (check_polygon_closure, transform_tzt_data_to_kml_format,
-                   get_coordinate_in_dd_or_dms)
-from computation import (compute_gps_coordinates_spherical, 
-                         compute_gps_coordinates_vincenty, 
-                         compute_gps_coordinates_karney, 
-                         average_methods)
-from file_io import (save_data_to_json, save_kml_to_file, 
-                     generate_kml_placemark, generate_complete_kml, 
-                     generate_kml_polygon, load_data_from_json)
-from io_operations import *
-from data_operations import *
-from display_operations import *
+from utils import transform_tzt_data_to_kml_format, get_coordinate_in_dd_or_dms
+from computation import compute_gps_coordinates_spherical, compute_gps_coordinates_vincenty, compute_gps_coordinates_karney, average_methods
+from file_io import save_data_to_json, save_kml_to_file, generate_kml_placemark, generate_complete_kml, generate_kml_polygon, load_data_from_json
+
+# Imports from io_operations
+from io_operations import (
+    get_coordinate_format_only,
+    get_tie_point_coordinate_format,
+    ask_use_same_format_for_all,
+    get_initial_coordinates,
+    get_coordinate_use_choice,
+    get_point_use_choice,
+    get_computation_method,
+    get_num_points_to_compute,
+    get_bearing_and_distance,
+    get_add_point_decision
+)
+# Imports from data_operations
+from data_operations import initialize_data, update_polygon_data, warn_if_polygon_not_closed, check_polygon_closure
+
+# Imports from display_operations
+from display_operations import display_computed_point, display_starting_point, display_monument_point
 
 
 METHODS_MAP = {

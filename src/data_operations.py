@@ -5,7 +5,8 @@ Handles the creation, manipulation, and validation of data structures used
 in the main program workflow.
 """
 
-from utils import (check_polygon_closure)
+from geopy.distance import distance as geopy_distance
+
 
 def initialize_data():
     return {
@@ -59,3 +60,27 @@ def warn_if_polygon_not_closed(points, monument_coord=None):
         print("Your polygon is close enough to being closed.")
     else:
         print("Warning: Your polygon is not closed.")
+
+def is_polygon_close_to_being_closed(points, threshold=20):
+    for i in range(len(points) - 1):  # Exclude the last point itself
+        distance = geopy_distance(points[-1], points[i]).feet
+        if distance <= threshold:
+            return True
+    return False
+    
+
+def check_polygon_closure(points, reference_point=None):
+    if len(points) > 2:
+        distance_between_first_and_last = geopy_distance(points[0], points[-1]).feet
+        
+        # Check if the distance is extremely close
+        if distance_between_first_and_last < 0.1:
+            points[-1] = points[0]
+            return True
+        
+        if reference_point:
+            distance_from_reference_to_last = geopy_distance(reference_point[:2], points[-1]).feet
+            return distance_between_first_and_last <= 10 or distance_from_reference_to_last <= 10
+        else:
+            return distance_between_first_and_last <= 10
+    return False
