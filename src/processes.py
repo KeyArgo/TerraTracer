@@ -91,16 +91,29 @@ def json_to_kml(filepath):
     print("Conversion from .json to .kml completed!")
 
 
-def gather_initial_coordinates():
+def gather_tie_point_coordinates():
     """Gather initial coordinates (Tie Point) from the user."""
     coordinate_format = get_tie_point_coordinate_format()
     
     if coordinate_format == "1":  # Checking for "1" instead of "DD"
         lat = get_coordinate_in_dd_or_dms(coordinate_format, "latitude")
+        if lat is None:  # User chose to exit
+            return None, None
         lon = get_coordinate_in_dd_or_dms(coordinate_format, "longitude")
+        if lon is None:  # User chose to exit
+            return None, None
+
     elif coordinate_format == "2":  # Checking for "2" instead of "DMS"
         lat = get_coordinate_in_dd_or_dms(coordinate_format, "latitude")
+        if lat is None:  # User chose to exit
+            return None, None
         lon = get_coordinate_in_dd_or_dms(coordinate_format, "longitude")
+        if lon is None:  # User chose to exit
+            return None, None
+
+    elif coordinate_format == "3":  # Checking for "3" instead of "Main Menu"
+        return None, None
+
     else:
         print("Invalid choice. Returning to main menu.")
         return None, None
@@ -108,42 +121,18 @@ def gather_initial_coordinates():
     return lat, lon
 
 
-def determine_point_use():
-    print("\nChoose an option:")
-    print("1) Use a Tie Point")
-    print("2) Specify the placement of the first point in the polygon")
-    choice = input("Enter your choice (1/2): ")
-
-    if choice == "1":
-        print("\nTie Point Menu:")
-        print("1) Use initial point as Monument/Placemark")
-        print("2) Find and place the first point of the polygon")
-        tie_point_choice = input("Enter your choice (1/2): ")
-        if tie_point_choice == "1":
-            return "1"  # Monument/Placemark
-        elif tie_point_choice == "2":
-            return "2"  # Starting point of polygon
-
-    elif choice == "2":
-        return "2"  # Starting point of polygon without a tie point
-
-    else:
-        print("Invalid choice. Please try again.")
-        return determine_point_use()
-
-
 def gather_monument_data(coordinate_format, lat, lon, use_same_format_for_all):
     if not use_same_format_for_all:
         coordinate_format = get_coordinate_format_only()
     
     bearing, distance = get_bearing_and_distance(coordinate_format)
-    if bearing is not None:
-        lat, lon = compute_point_based_on_method(1, lat, lon, bearing, distance)
-        monument_label = input("Enter a label for the monument (e.g., Monument, Point A, etc.): ")
-        results = (lat, lon, monument_label, bearing, distance)
-        return coordinate_format, results
+    if bearing is None and distance is None:  # User wants to exit
+        return coordinate_format, None
     
-    return coordinate_format, None
+    lat, lon = compute_point_based_on_method(1, lat, lon, bearing, distance)
+    monument_label = input("Enter a label for the monument (e.g., Monument, Point A, etc.): ")
+    results = (lat, lon, monument_label, bearing, distance)
+    return coordinate_format, results
 
 
 def gather_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all):
@@ -158,11 +147,13 @@ def gather_polygon_points(data, coordinate_format, lat, lon, use_same_format_for
                 coordinate_format = new_coordinate_format
 
         bearing, distance = get_bearing_and_distance(coordinate_format)
-        if bearing is not None:
-            lat, lon = compute_point_based_on_method(choice, lat, lon, bearing, distance)
-            data = update_polygon_data(data, lat, lon, bearing, distance)
-            points.append((lat, lon))
-            display_computed_point(points, lat, lon)
+        if bearing is None and distance is None:  # User wants to exit
+            break
+
+        lat, lon = compute_point_based_on_method(choice, lat, lon, bearing, distance)
+        data = update_polygon_data(data, lat, lon, bearing, distance)
+        points.append((lat, lon))
+        display_computed_point(points, lat, lon)
     return data, points
 
 
@@ -174,11 +165,12 @@ def finalize_data(data, points, use_same_format_for_all):
             if not use_same_format_for_all:
                 coordinate_format = get_coordinate_format_only()
             bearing, distance = get_bearing_and_distance(coordinate_format)
-            if bearing is not None:
-                lat, lon = compute_point_based_on_method(choice, lat, lon, bearing, distance)
-                data = update_polygon_data(data, lat, lon, bearing, distance)
-                points.append((lat, lon))
-                display_computed_point(points, lat, lon)
+            if bearing is None and distance is None:  # User wants to exit
+                break
+            lat, lon = compute_point_based_on_method(choice, lat, lon, bearing, distance)
+            data = update_polygon_data(data, lat, lon, bearing, distance)
+            points.append((lat, lon))
+            display_computed_point(points, lat, lon)
         elif add_point_decision == 'no':
             break
         else:
@@ -191,17 +183,19 @@ def polygon_main_menu():
     print("\nChoose an option:")
     print("1) Use a Tie Point")
     print("2) Specify the placement of the first point in the polygon")
-    return input("Enter your choice (1/2): ")
+    print("3) Exit to Main Menu")
+    return input("Enter your choice (1/2/3): ")
 
 
 def tie_point_menu():
     print("\nChoose an option:")
     print("1) Use initial point as Monument/Placemark")
     print("2) Find and place the first point of the polygon")
-    choice = input("Enter your choice (1/2): ").strip()
-    while choice not in ["1", "2"]:
-        print("Invalid choice. Please select 1 or 2.")
-        choice = input("Enter your choice (1/2): ").strip()
+    print("3) Exit to Main Menu")
+    choice = input("Enter your choice (1/2/3): ").strip()
+    while choice not in ["1", "2", "3"]:
+        print("Invalid choice. Please select 1, 2 or 3.")
+        choice = input("Enter your choice (1/2/3): ").strip()
     return choice
 
 
@@ -213,8 +207,11 @@ def gather_data_from_user():
 
     if main_choice == "1":  # Using a Tie Point
         # Gather initial coordinates (Tie Point Location)
-        lat, lon = gather_initial_coordinates()
-        if lat is None or lon is None:
+        lat, lon = gather_tie_point_coordinates()
+        
+        # Check if lat and lon are None (indicating a return to the Main Menu)
+        if lat is None and lon is None:
+            # Handle return to Main Menu or exit the function.
             return
         data["initial"] = {"lat": lat, "lon": lon}
         
@@ -248,7 +245,7 @@ def gather_data_from_user():
             display_starting_point(lat, lon)
 
     elif main_choice == "2":  # Directly specify the placement of the first point
-        lat, lon = gather_initial_coordinates()
+        lat, lon = gather_tie_point_coordinates()
         if lat is None or lon is None:
             return
         data["initial"] = {"lat": lat, "lon": lon}
@@ -258,6 +255,9 @@ def gather_data_from_user():
 
         # Prompt the user if they want to use the same format for all computed points
         use_same_format_for_all = ask_use_same_format_for_all()
+
+    elif main_choice == "3":  # Exit to Main Menu
+        return None
 
     else:
         return None
@@ -269,13 +269,6 @@ def gather_data_from_user():
     data = finalize_data(data, points, use_same_format_for_all)
     
     return data
-
-
-def polygon_main_menu():
-    print("\nChoose an option:")
-    print("1) Use a Tie Point")
-    print("2) Specify the placement of the first point in the polygon")
-    return input("Enter your choice (1/2): ")
 
 
 def export_to_kml(data, points):
@@ -319,7 +312,7 @@ def export_to_data(data):
 
 def create_kml_process():
     data = gather_data_from_user()  # Get the data using the function
-    
+
     # Check if data was returned and has the expected keys
     if not data or 'polygon' not in data:
         print("Data gathering was not completed. Exiting.")

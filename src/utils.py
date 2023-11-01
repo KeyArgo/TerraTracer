@@ -26,6 +26,7 @@ def validate_dms(degrees, coordinate_name):
     elif degrees == 0:
         raise ValueError("Degree value cannot be zero.")
 		
+
 def get_coordinate_in_dd_or_dms(coordinate_format, coordinate_name="latitude"):
     """
     Prompts the user to enter coordinates in either decimal degrees (DD) or degrees, minutes, seconds (DMS) format.
@@ -35,29 +36,46 @@ def get_coordinate_in_dd_or_dms(coordinate_format, coordinate_name="latitude"):
     - coordinate_name (str, optional): Name of the coordinate ("latitude" or "longitude").
 
     Returns:
-    - float: Coordinate value in decimal degrees.
+    - float or None: Coordinate value in decimal degrees or None if the user chooses to exit.
     """
+    print(f"\n---------- Enter {coordinate_name.capitalize()} ----------")
+    
     while True:
         if coordinate_format == "1":
+            print(f"\n{coordinate_name.capitalize()} (DD Format):")
+            example_value = "68.0106" if coordinate_name == "latitude" else "-110.0106"
+            print(f"Example: {example_value}")
+            value = input("\nEnter your value or type 'exit' to go to main menu: ")
+            if value.lower() == 'exit':
+                return None
             try:
-                value = input(f"Enter {coordinate_name} in decimal degrees format (e.g., 68.0106 or -68.0106): ")
                 # Check if entered value is in DMS format
                 if any(char in value for char in ['°', '\'', '\"']):
                     raise ValueError("DMS format detected. Please enter in decimal degrees as chosen.")
                 return float(value)
             except ValueError as e:
-                print(f"Error: {e}. Please try again.")
+                print(f"\nError: {e}. Please try again.")
 
         elif coordinate_format == "2":
+            print(f"\n{coordinate_name.capitalize()} (DMS Format):")
+            example_format = "68° 00' 38\"N" if coordinate_name == "latitude" else "110° 00' 38\"W"
+            print(f"Example: {example_format}")
+            print("\nEnter direction in DMS format. Examples:\n"
+                  "- N 68° 00' 38\" E\n"
+                  "- N 68 degrees 0' 38\" E\n"
+                  "- n 68 0 38 e")
+            dms_str = input("\nEnter your value or type 'exit' to go to main menu: ")
+            if dms_str.lower() == 'exit':
+                return None
             try:
-                dms_str = input(f"Enter {coordinate_name} in DMS format (e.g., 68° 00' 38\"N [for latitude] or 110° 00' 38\"W [for longitude]): ")
                 _, dd_value = parse_and_convert_dms_to_dd(dms_str, coordinate_name)
                 return dd_value
             except ValueError as e:
-                print(f"Error: {e}. Please try again.")
+                print(f"\nError: {e}. Please try again.")
         else:
-            print("Invalid choice.")
+            print("\nInvalid choice.")
             return None
+
 
 def parse_and_convert_dms_to_dd(dms_str, coordinate_name):
     """
@@ -144,56 +162,68 @@ def parse_dd_or_dms(coordinate_format):
         print("Please specify the coordinate format: (1 for DD, 2 for DMS)")
         coordinate_format = input()
 
-    if coordinate_format == "1":  # DD format
-        orientation = input("Enter starting orientation (N, S, E, W): ").upper()
-        
-        # Check the orientation immediately
-        if orientation not in ["N", "S", "E", "W"]:
-            print("Invalid orientation.")
-            return None
+    while True:  # Added an outer loop to handle invalid inputs more effectively
+        if coordinate_format == "1":  # DD format
+            orientation = input("Enter starting orientation (N, S, E, W) or type 'exit' to go to main menu: ").upper()
 
-        dd_value = float(input("Enter direction in decimal degrees (e.g., 68.0106): "))
+            if orientation == "EXIT":
+                return None
 
-        if orientation == "N":
-            bearing = dd_value
-        elif orientation == "S":
-            bearing = 180 + dd_value
-        elif orientation == "E":
-            bearing = 90 + dd_value
-        elif orientation == "W":
-            bearing = 270 + dd_value
+            # Check the orientation immediately
+            if orientation not in ["N", "S", "E", "W"]:
+                print("Invalid orientation.")
+                continue
 
-        if 0 <= bearing <= 360:
-            return bearing
-        else:
-            print("Invalid DD value. Must be between 0 and 360.")
-            return None
+            dd_value = input("Enter direction in decimal degrees (e.g., 68.0106) or type 'exit' to go to main menu: ")
 
-    elif coordinate_format == "2":  # DMS format
-        dms_direction = input(
-            "Enter direction in DMS format. Examples:\n"
-            "- N 68° 00' 38\" E\n"
-            "- N 68 degrees 0' 38\" E\n"
-            "- n 68 0 38 e\n\n"
-            "Your input: "
-        )
-        if " " in dms_direction:  # Check for space to differentiate between land survey and typical GPS
-            bearing = parse_and_convert_dms_to_dd_survey(dms_direction, "direction")
+            if dd_value.lower() == "exit":
+                return None
 
-        else:
-            direction, bearing = parse_and_convert_dms_to_dd(dms_direction, "direction")
-            if direction is None:
-                print("Invalid DMS string format. Please try again.")
-                return parse_dd_or_dms(coordinate_format)  # Recursively ask for input again, passing in the format
-            if direction == "S":
-                bearing = 180 + bearing
-            elif direction == "W":
-                bearing = 270 + bearing
-        return bearing
+            try:
+                dd_value = float(dd_value)
+                if orientation == "N":
+                    bearing = dd_value
+                elif orientation == "S":
+                    bearing = 180 + dd_value
+                elif orientation == "E":
+                    bearing = 90 + dd_value
+                elif orientation == "W":
+                    bearing = 270 + dd_value
 
-    else:
-        print("Invalid format passed to the function.")
-        return None
+                if 0 <= bearing <= 360:
+                    return bearing
+                else:
+                    print("Invalid DD value. Must be between 0 and 360.")
+            except ValueError:
+                print("Invalid input. Please enter a valid decimal degree value.")
+
+        elif coordinate_format == "2":  # DMS format
+            dms_direction = input(
+                "Enter direction in DMS format. Examples:\n"
+                "- N 68° 00' 38\" E\n"
+                "- N 68 degrees 0' 38\" E\n"
+                "- n 68 0 38 e\n\n"
+                "Enter your value or type 'exit' to go to main menu: "
+            )
+
+            if dms_direction.lower() == "exit":
+                return None
+
+            if " " in dms_direction:  # Check for space to differentiate between land survey and typical GPS
+                bearing = parse_and_convert_dms_to_dd_survey(dms_direction, "direction")
+                if bearing is not None:
+                    return bearing
+
+            else:
+                direction, bearing = parse_and_convert_dms_to_dd(dms_direction, "direction")
+                if direction:
+                    if direction == "S":
+                        bearing = 180 + bearing
+                    elif direction == "W":
+                        bearing = 270 + bearing
+                    return bearing
+                else:
+                    print("Invalid DMS string format. Please try again.")
 
 
 def transform_tzt_data_to_kml_format(parsed_data):

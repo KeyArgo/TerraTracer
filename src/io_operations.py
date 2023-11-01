@@ -10,13 +10,14 @@ from utils import (get_coordinate_in_dd_or_dms, parse_dd_or_dms)
 def get_coordinate_format_only():
     """Prompt the user to select a coordinate format."""
     while True:
-        print("\n---------- Coordinate Format Selection ----------")
+        print("\n---------- Polygon Coordinate Format Selection ----------")
         print("1. Decimal Degrees (DD)")
         print("2. Degrees, Minutes, Seconds (DMS)")
-        choice = input("Enter your choice (1/2): ")
-        if choice in ["1", "2"]:
+        print("3. Exit to Main Menu")
+        choice = input("Enter your choice (1/2/3): ")
+        if choice in ["1", "2", "3"]:
             return choice
-        print("Invalid choice. Please enter 1 or 2.")
+        print("Invalid choice. Please enter 1, 2 or 3.")
 
 
 
@@ -28,10 +29,10 @@ def get_tie_point_coordinate_format():
     
     print("\n---------- Tie Point Coordinate Format Selection ----------")
     
-    choice = input("Enter Tie Point coordinates format (1 for DD, 2 for DMS): ")
-    while choice not in ["1", "2"]:
-        print("Invalid choice. Please select 1 for DD or 2 for DMS.")
-        choice = input("Enter Tie Point coordinates format (1 for DD, 2 for DMS): ")
+    choice = input("Enter Tie Point coordinates format (1 for DD, 2 for DMS, 3 for Main Menu): ")
+    while choice not in ["1", "2", "3"]:
+        print("Invalid choice. Please select 1 for DD, 2 for DMS or 3 for Main Menu.")
+        choice = input("Enter Tie Point coordinates format (1 for DD, 2 for DMS, 3 for Main Menu): ")
     return choice
 
 
@@ -136,8 +137,8 @@ def get_bearing_and_distance(coordinate_format):
         try:
             bearing = parse_dd_or_dms(coordinate_format)
             if bearing is None:
-                raise ValueError("Invalid input for bearing.")
-            
+                return None, None  # Return exit signal
+
             distance = float(input("Enter distance in feet: ").replace(',', ''))
             return bearing, distance
 
