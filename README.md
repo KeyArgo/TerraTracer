@@ -1,96 +1,93 @@
-# TerraTracer
+# TerraTracer: Geolocation Made Simple
 
-TerraTracer is a versatile geolocation tool designed to calculate precise coordinates based on user-defined starting points, bearings, and distances. Whether you're a hiker, land mapper, drone enthusiast, rockhound, or just need to pinpoint a location, TerraTracer offers accurate location data tailored to your needs.
+## About TerraTracer
 
-## Introduction
+TerraTracer is a powerful and versatile geolocation tool that empowers users to calculate precise coordinates with ease. It's designed to cater to a wide array of geospatial needs - from hikers mapping their trails, land mappers outlining property boundaries, drone enthusiasts plotting flight paths, to rockhounds marking their finds, or anyone in need of pinpointing a specific location.
 
-TerraTracer simplifies geolocation by providing various methods for calculating coordinates. Choose the method that suits your needs for accurate results.
-
-## Geolocation Methods and Accuracy
-
-Choose from multiple geolocation methods:
-
-### Karney's Method:
-
-* **Explanation**: An enhanced method over Vincenty's. Uses a series expansion for calculations.
-* **Pros**: Faster, more accurate, and always converges.
-* **Cons**: More computationally intensive than the spherical model.
-
-### Vincenty's Method:
-
-* **Explanation**: Uses ellipsoidal surface equations. Accounts for Earth's flattening for higher accuracy.
-* **Pros**: More accurate over most locations, especially long distances.
-* **Cons**: Might not converge near the poles.
-
-### Spherical Model:
-
-* **Explanation**: Approximates Earth as a perfect sphere. Uses trigonometric equations to calculate new latitude and longitude.
-* **Pros**: Fast and computationally less intensive.
-* **Cons**: Less accurate over long distances due to Earth's oblate spheroid shape.
-
-### Average Methods:
-
-* **Explanation**: Averages coordinates from all three methods for a potentially balanced result.
-* **Pros**: Might mitigate individual method limitations.
-* **Cons**: No guarantee of improved accuracy in all scenarios.
-
-## Installation
-
-### Prerequisites
-
-Ensure you have the following libraries installed:
-
-* geopy
-* geographiclib
-
-You can install them using pip:
-
-```bash
-pip install geopy geographiclib
-```
-
-### Steps
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/KeyArgo/TerraTracer.git
-```
-
-2. Navigate to the directory:
-
-```bash
-cd TerraTracer
-```
-
-## Usage
-
-Run TerraTracer:
-
-```bash
-python TerraTracer_v0.1.1.py
-```
-
-Follow on-screen prompts to input starting coordinates, choose the geolocation method, and specify points.
-
-TerraTracer will display the calculated coordinates for each point.
+With TerraTracer, you can create custom geometric polygons, define individual placemarks based on coordinate inputs, and even convert your data to KML for visualization in applications like Google Earth. Its intuitive interface and robust backend ensure that your geolocation data is both accurate and useful for a variety of applications.
 
 ## Features
 
-* Multiple geolocation methods: Karney's, Vincenty's, and Spherical.
-* Option to average all methods for diverse accuracy.
-* Intuitive interface and prompts.
-* Versatility for a range of outdoor and planning needs.
+- **Custom Geometric Polygons**: Create shapes and patterns, delineate boundaries, and designate zones for various planning purposes.
+- **Placemark Creation**: Input coordinates to define and mark specific points of interest on the map.
+- **KML Conversion**: Transform your JSON-formatted geolocation data into KML files for use with mapping tools.
+- **User-Friendly Interface**: Navigate through the functionality of the program with an easy-to-use menu system.
+- **Versatile Application**: Whether for professional land surveying or personal outdoor activities, TerraTracer is adaptable to suit your requirements.
+
+## Getting Started
+
+### Prerequisites
+
+To use TerraTracer, you'll need to have Python installed on your system. TerraTracer is built to run with Python 3.6 or higher.
+
+### Installation
+
+1. **Clone the repository**
+
+   Start by cloning the TerraTracer repository to your local machine using:
+
+```bash
+   git clone https://github.com/KeyArgo/TerraTracer.git
+   cd TerraTracer
+```
+
+2. **Install dependencies**
+    
+    TerraTracer relies on a few external libraries to function correctly. You can install these using the provided `requirements.txt` file:
+    
+    ```bash
+    pip install -r requirements.txt
+    ```
+    
+
+### Usage
+
+To start using TerraTracer, run the `main_program.py` script in your terminal:
+
+```bash
+python main_program.py
+```
+
+Follow the on-screen prompts to select the operation you wish to perform. You can create polygons, placemarks, or convert JSON data to KML format.
+
+### Example
+
+After running TerraTracer, you might see a menu like this:
+
+```markdown
+#########################
+      TerraTracer       
+#########################
+
+1. Create Custom Geometric Polygons
+   - Create mining claims based on land certificates.
+
+2. Create Placemarks
+   - Define individual placemarks based on coordinate inputs.
+
+3. Convert JSON File to KML - COMING SOON
+   - Convert a previously saved JSON data file into a KML format for visualization in tools like Google Earth.
+
+X. Exit
+   - Terminate the program.
+```
+
+Simply enter your choice and follow the subsequent prompts to carry out your geolocation tasks.
 
 ## Contributing
 
-Contributions to TerraTracer are welcome! Here's how you can get started:
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-* Open an issue to report bugs or suggest enhancements.
-* Submit a pull request with your code contributions.
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
 
-Please check our Contribution Guidelines for more details.
+Don't forget to give the project a star! Thanks again!
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 
-TerraTracer is licensed under the MIT License.
+Distributed under the MIT License. See `LICENSE` for more information.
