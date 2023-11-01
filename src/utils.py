@@ -38,7 +38,7 @@ def get_coordinate_in_dd_or_dms(coordinate_format, coordinate_name="latitude"):
     Returns:
     - float or None: Coordinate value in decimal degrees or None if the user chooses to exit.
     """
-    print(f"\n---------- Enter {coordinate_name.capitalize()} ----------")
+    print(f"\n-------------------- Enter {coordinate_name.capitalize()} --------------------")
     
     while True:
         if coordinate_format == "1":
@@ -189,6 +189,12 @@ def parse_dd_or_dms(coordinate_format):
                     bearing = 90 + dd_value
                 elif orientation == "W":
                     bearing = 270 + dd_value
+
+                # Adjust bearing to be between 0 and 360
+                while bearing > 360:
+                    bearing -= 360
+                while bearing < 0:
+                    bearing += 360
 
                 if 0 <= bearing <= 360:
                     return bearing
