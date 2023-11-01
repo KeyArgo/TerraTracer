@@ -27,7 +27,14 @@ def get_tie_point_coordinate_format():
     Returns the choice as a string ("1" for DD, "2" for DMS).
     """
     
-    print("\n---------- Tie Point Coordinate Format Selection ----------")
+    print("\n\n\n--------------- Tie Point Coordinate Format Selection ---------------")
+    print("_____________________________________________________________________")
+    print("\nA Tie Point is a set of coordinates that you would like to use as")
+    print("a starting point in which you utilize bearing and distance, or metes")
+    print("and bounds, to determine the starting point of your polygon or in some")
+    print("cases a monument (center location within the polygon. You can choose)")
+    print("between using DD (Decimal Degrees) and DMS (Degrees Minutes Seconds).)")
+    print("_____________________________________________________________________")
     
     choice = input("Enter Tie Point coordinates format (1 for DD, 2 for DMS, 3 for Main Menu): ")
     while choice not in ["1", "2", "3"]:

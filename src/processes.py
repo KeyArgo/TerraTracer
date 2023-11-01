@@ -154,35 +154,66 @@ def gather_polygon_points(data, coordinate_format, lat, lon, use_same_format_for
         data = update_polygon_data(data, lat, lon, bearing, distance)
         points.append((lat, lon))
         display_computed_point(points, lat, lon)
-    return data, points
+    return data, points, choice
 
 
-def finalize_data(data, points, use_same_format_for_all):
+def finalize_data(data, points, use_same_format_for_all, coordinate_format, choice):
+    # If there are already points, use the last one as the starting point
+    lat, lon = points[-1] if points else (None, None)
+
+    # The loop allows the user to add points until they decide not to add more
     while True:
+        # Warn the user if the polygon is not closed
         warn_if_polygon_not_closed(points)
+
+        # Ask the user if they want to add another point
         add_point_decision = get_add_point_decision()
+
         if add_point_decision == 'yes':
+            # If the user wants to add a point, get the format if needed
             if not use_same_format_for_all:
                 coordinate_format = get_coordinate_format_only()
+
+            # Get the bearing and distance for the new point
             bearing, distance = get_bearing_and_distance(coordinate_format)
-            if bearing is None and distance is None:  # User wants to exit
+            if bearing is None and distance is None:
+                # If the user decides to exit during input, break from the loop
                 break
+
+            # Compute the new point
             lat, lon = compute_point_based_on_method(choice, lat, lon, bearing, distance)
-            data = update_polygon_data(data, lat, lon, bearing, distance)
-            points.append((lat, lon))
-            display_computed_point(points, lat, lon)
+
+            # If the computation was successful, update the polygon data and display the point
+            if lat is not None and lon is not None:
+                data = update_polygon_data(data, lat, lon, bearing, distance)
+                points.append((lat, lon))
+                display_computed_point(points, lat, lon)
+            else:
+                print("An error occurred while computing the point. Please try again.")
+                continue  # Skip to the next iteration of the loop
         elif add_point_decision == 'no':
+            # If the user does not want to add more points, break from the loop
             break
         else:
             print("Invalid choice. Please enter 'yes' or 'no'.")
+            continue  # Skip to the next iteration of the loop
+
+    # After the loop, add any other finalization steps if needed
     data['units'] = 'imperial'
     return data
 
 
 def polygon_main_menu():
+    print("\n\n\n------------------ Create Custom Geometric Polygon ------------------")
+    print("_____________________________________________________________________")
+    print("\nThis menu allows you to create a KML or JSON file for polygons")
+    print("using common bearings, distances or metes and bounds commonly used")
+    print("in land descriptions.  You can begin with a Tie Point or specify a")
+    print("set of starting coordinates for your polygon.")
+    print("_____________________________________________________________________")
     print("\nChoose an option:")
     print("1) Use a Tie Point")
-    print("2) Specify the placement of the first point in the polygon")
+    print("2) Specify the first point of the polygon")
     print("3) Exit to Main Menu")
     return input("Enter your choice (1/2/3): ")
 
@@ -260,13 +291,15 @@ def gather_data_from_user():
         return None
 
     else:
+        print("Invalid choice. Please enter 1, 2, or 3.")
         return None
     
     # If we reach this point, we're ready to gather the polygon points
-    data, points = gather_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all)
+    data, points, choice = gather_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all)
     
     # Finalize the data by potentially adding more points
-    data = finalize_data(data, points, use_same_format_for_all)
+    print(f"Debug: coordinate_format is {coordinate_format}")
+    data = finalize_data(data, points, use_same_format_for_all, coordinate_format, choice)
     
     return data
 
