@@ -26,7 +26,6 @@ Potential Improvements:
 
 # Standard library imports
 import os
-import re
 
 # Third-party library imports
 from geopy.distance import distance as geopy_distance
@@ -36,16 +35,13 @@ from geographiclib.geodesic import Geodesic
 # Local module imports
 from utils import transform_tzt_data_to_kml_format, get_coordinate_in_dd_or_dms
 from computation import compute_gps_coordinates_spherical, compute_gps_coordinates_vincenty, compute_gps_coordinates_karney, average_methods
-from file_io import save_data_to_json, save_kml_to_file, generate_kml_placemark, generate_complete_kml, generate_kml_polygon, load_data_from_json
+from file_io import save_data_to_json, save_kml_to_file, generate_kml_placemark, generate_kml_initial_point, generate_complete_kml, generate_kml_polygon, load_data_from_json
 
 # Imports from io_operations
 from io_operations import (
     get_coordinate_format_only,
     get_tie_point_coordinate_format,
     ask_use_same_format_for_all,
-    get_initial_coordinates,
-    get_coordinate_use_choice,
-    get_point_use_choice,
     get_computation_method,
     get_num_points_to_compute,
     get_bearing_and_distance,
@@ -343,6 +339,72 @@ def export_to_data(data):
     save_data_to_json(data, full_path)
 
 
+def create_kml_content(data, close_polygon=False):
+    try:
+        # Note: No longer creating a placemark for the initial point
+        monument_kml = ""
+        polygon_kml = ""
+
+        # Check if monument data exists
+        if 'monument' in data and 'lat' in data['monument'] and 'lon' in data['monument']:
+            monument_kml = generate_kml_placemark(
+                data['monument']['lat'], 
+                data['monument']['lon'], 
+                name=data['monument'].get('label', "Monument")
+            )
+
+        # Check if polygon data exists
+        if 'polygon' in data:
+            polygon_points = [(point['lat'], point['lon']) for point in data['polygon'] if 'lat' in point and 'lon' in point]
+            if close_polygon and polygon_points and polygon_points[0] != polygon_points[-1]:
+                # Close the polygon by appending the first point at the end if needed
+                polygon_points.append(polygon_points[0])
+            polygon_kml = generate_kml_polygon(polygon_points)
+
+        # Combine monument and polygon into one KML file
+        complete_kml = generate_complete_kml(monument_kml, polygon_kml)
+        return complete_kml
+    except (KeyError, ValueError) as e:
+        print(f"An error occurred while creating KML content: {e}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
+    
+
+def finalize_json_structure(data):
+    # Extract the polygon points and convert them to the required format for the checking functions
+    points = [(point['lat'], point['lon']) for point in data.get('polygon', [])]
+
+    # Warn the user about the polygon closure status
+    warn_if_polygon_not_closed(points, data.get('monument', {}).get('coord'))
+
+    # Rename 'initial' to 'tie_point'
+    if 'initial' in data:
+        data['tie_point'] = data.pop('initial')
+    
+    # Assign IDs to the polygon points
+    for i, point in enumerate(data.get('polygon', []), start=1):
+        point['id'] = f"P{i}"
+
+    # If the polygon is closed, ensure the last point's ID matches the first point's ID
+    # and also match the coordinates
+    if check_polygon_closure(points):
+        first_point_id = data['polygon'][0]['id']
+        data['polygon'][-1]['id'] = first_point_id
+        data['polygon'][-1]['lat'] = data['polygon'][0]['lat']
+        data['polygon'][-1]['lon'] = data['polygon'][0]['lon']
+
+    # Create the construction sequence
+    construction_sequence = ['tie_point'] if 'tie_point' in data else []
+    if 'monument' in data:
+        construction_sequence.append('monument')
+    construction_sequence.extend(point['id'] for point in data.get('polygon', []))
+    data['construction_sequence'] = construction_sequence
+
+    return data
+
+
 def create_kml_process():
     data = gather_data_from_user()  # Get the data using the function
 
@@ -351,22 +413,63 @@ def create_kml_process():
         print("Data gathering was not completed. Exiting.")
         return
     
-    # This is your primary list of points from which both KML and TZT should be generated.
+    # This is your primary list of points from which both KML and JSON should be generated.
     points = [(point['lat'], point['lon']) for point in data['polygon']]
     print("Polygon Points:", points)
 
     # Check one last time if the polygon is closed
-    if not check_polygon_closure(points, (data["monument"]["lat"], data["monument"]["lon"]) if "lat" in data["monument"] else None):
+    if not check_polygon_closure(points):
         print("Warning: Your polygon is not closed.")
 
-    # Prompt user if they want to export the data                                                
+    # Prompt user if they want to export the data
     export_choice = input("Do you want to export the polygon to a KML file or Data File? (yes/no): ")
     if export_choice.lower() == 'yes':
         file_type_choice = input("Would you like to save a (K)ML, (D)ata File or (B)oth? ").upper()
-        
+
+        # Define the directories
+        kml_directory = os.path.abspath(os.path.join(os.pardir, 'saves', 'kml'))
+        json_directory = os.path.abspath(os.path.join(os.pardir, 'saves', 'json'))
+        os.makedirs(kml_directory, exist_ok=True)
+        os.makedirs(json_directory, exist_ok=True)
+
+        # Get the filename from the user
+        filename = input("Enter the filename for the file (without extension): ")
+
+        # Initialize file paths
+        kml_path = os.path.join(kml_directory, f"{filename}.kml")
+        json_path = os.path.join(json_directory, f"{filename}.json")
+
+        # Check if the file already exists and prompt for a new name if it does
+        while os.path.exists(kml_path) or os.path.exists(json_path):
+            print("A file with that name already exists. Please choose a different filename.")
+            filename = input("Enter a new filename for the file (without extension): ")
+            kml_path = os.path.join(kml_directory, f"{filename}.kml")
+            json_path = os.path.join(json_directory, f"{filename}.json")
+
+        # Proceed to save files now that we have a unique filename
         if file_type_choice in ["K", "B"]:
-            export_to_kml(data, points)
+            # Pass the closure status of the polygon to the KML content creation function
+            kml_content = create_kml_content(data, close_polygon=check_polygon_closure(points))
+            if kml_content:
+                save_kml_to_file(kml_content, kml_path)
+                print(f"KML file saved at {kml_path}")
+            else:
+                print("Failed to generate KML content.")
+
         if file_type_choice in ["D", "B"]:
-            export_to_data(data)
+            # Finalize the data structure for JSON
+            final_data = finalize_json_structure(data)  # Ensure this function is defined and implemented
+            save_data_to_json(final_data, json_path)
+            print(f"Data file saved at {json_path}")
+
+        # Notify the user where the files can be found
+        if file_type_choice == 'B':
+            print(f"Both KML and JSON files have been saved.")
+            print(f"KML file location: {kml_path}")
+            print(f"JSON file location: {json_path}")
+        elif file_type_choice == 'K':
+            print(f"KML file location: {kml_path}")
+        elif file_type_choice == 'D':
+            print(f"JSON file location: {json_path}")
 
     return data  # returning data for inspection purposes
