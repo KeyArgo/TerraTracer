@@ -92,7 +92,7 @@ def save_kml_to_file(kml_content, full_path):
     """Save the provided KML content into a file."""
     # Ensure the directory exists or create it
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
-
+    
     # Save the KML content to the specified file
     try:
         with open(full_path, 'w') as file:
@@ -101,12 +101,13 @@ def save_kml_to_file(kml_content, full_path):
     except Exception as e:
         print(f"Error writing to file: {e}")
 
+
 def save_data_to_json(data_content, full_path):
     """Save the provided data as a JSON file."""
     # Ensure the directory exists or create it
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
-
-    # Save the data to the specified file
+    
+    # Save the data to the specified JSON file
     try:
         with open(full_path, 'w') as file:
             json.dump(data_content, file, indent=4)
@@ -114,6 +115,38 @@ def save_data_to_json(data_content, full_path):
     except Exception as e:
         print(f"Error writing to file: {e}")
     
+
+def organize_data_for_export(data, sequence):
+    """Organize the data into an ordered list for KML recreation based on a given sequence."""
+    ordered_data = {'points': [], 'units': data.get('units', 'imperial')}
+    construction_sequence = []
+
+    # Add tie_point if it exists
+    if 'tie_point' in data:
+        ordered_data['tie_point'] = data['tie_point']
+    
+    # Add monument if it exists
+    if 'monument' in data:
+        ordered_data['monument'] = data['monument']
+    
+    # Process the points based on the user-defined sequence
+    for item in sequence:
+        if item == 'tie_point':
+            construction_sequence.append('tie_point')
+        elif item == 'monument':
+            construction_sequence.append('monument')
+        else:
+            # Assuming item is a point ID like 'P1', 'P2', etc.
+            point_data = next((point for point in data['polygon'] if point['id'] == item), None)
+            if point_data:
+                ordered_data['points'].append({'id': item, 'data': point_data})
+                construction_sequence.append(item)
+
+    ordered_data['construction_sequence'] = construction_sequence
+    
+    # Return the final structured data
+    return ordered_data
+
 
 def order_points(points):
     """
