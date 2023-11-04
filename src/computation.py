@@ -53,6 +53,14 @@ def average_methods(lat, long, bearing, distance):
     average_long = (long_sph + long_vin + long_kar) / 3
 
     return average_lat, average_long
+
+# Methods map for easy reference to computation functions
+METHODS_MAP = {
+    1: compute_gps_coordinates_karney,
+    2: compute_gps_coordinates_vincenty,
+    3: compute_gps_coordinates_spherical,
+    4: average_methods
+}
     
 def calculate_distance(coord1, coord2):
     """
@@ -66,3 +74,31 @@ def calculate_distance(coord1, coord2):
     - float: Distance between the two coordinates in feet.
     """
     return geopy_distance(coord1, coord2).feet
+
+
+def compute_point_based_on_method(choice, lat, lon, bearing, distance):
+    try:
+        method = METHODS_MAP.get(choice)
+        if method:
+            return method(lat, lon, bearing, distance)
+        else:
+            print("Invalid method choice.")
+            return None, None
+    except Exception as e:
+        print(f"An error occurred while computing the point: {e}")
+        return None, None
+
+    
+def gather_monument_data(coordinate_format, lat, lon, use_same_format_for_all):
+    from io_operations import get_coordinate_format_only, get_bearing_and_distance
+    if not use_same_format_for_all:
+        coordinate_format = get_coordinate_format_only()
+    
+    bearing, distance = get_bearing_and_distance(coordinate_format)
+    if bearing is None and distance is None:  # User wants to exit
+        return coordinate_format, None
+    
+    lat, lon = compute_point_based_on_method(1, lat, lon, bearing, distance)
+    monument_label = input("Enter a label for the monument (e.g., Monument, Point A, etc.): ")
+    results = (lat, lon, monument_label, bearing, distance)
+    return coordinate_format, results
