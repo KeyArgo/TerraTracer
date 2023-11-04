@@ -12,6 +12,25 @@ import os
 import json
 from scipy.spatial import ConvexHull
 
+
+def setup_directories():
+    kml_directory = os.path.abspath(os.path.join(os.pardir, 'saves', 'kml'))
+    json_directory = os.path.abspath(os.path.join(os.pardir, 'saves', 'json'))
+    os.makedirs(kml_directory, exist_ok=True)
+    os.makedirs(json_directory, exist_ok=True)
+    return kml_directory, json_directory
+
+
+def get_unique_filename(directory, extension):
+    filename = input("Enter the filename for the file (without extension): ")
+    file_path = os.path.join(directory, f"{filename}{extension}")
+    while os.path.exists(file_path):
+        print("A file with that name already exists. Please choose a different filename.")
+        filename = input("Enter a new filename for the file (without extension): ")
+        file_path = os.path.join(directory, f"{filename}{extension}")
+    return file_path
+
+
 def read_tzt_file(filepath):
     with open(filepath, 'r') as file:
         content = file.read()
@@ -114,38 +133,6 @@ def save_data_to_json(data_content, full_path):
         print(f"Data file saved at {full_path}")
     except Exception as e:
         print(f"Error writing to file: {e}")
-    
-
-def organize_data_for_export(data, sequence):
-    """Organize the data into an ordered list for KML recreation based on a given sequence."""
-    ordered_data = {'points': [], 'units': data.get('units', 'imperial')}
-    construction_sequence = []
-
-    # Add tie_point if it exists
-    if 'tie_point' in data:
-        ordered_data['tie_point'] = data['tie_point']
-    
-    # Add monument if it exists
-    if 'monument' in data:
-        ordered_data['monument'] = data['monument']
-    
-    # Process the points based on the user-defined sequence
-    for item in sequence:
-        if item == 'tie_point':
-            construction_sequence.append('tie_point')
-        elif item == 'monument':
-            construction_sequence.append('monument')
-        else:
-            # Assuming item is a point ID like 'P1', 'P2', etc.
-            point_data = next((point for point in data['polygon'] if point['id'] == item), None)
-            if point_data:
-                ordered_data['points'].append({'id': item, 'data': point_data})
-                construction_sequence.append(item)
-
-    ordered_data['construction_sequence'] = construction_sequence
-    
-    # Return the final structured data
-    return ordered_data
 
 
 def order_points(points):
@@ -172,35 +159,6 @@ def order_points(points):
     # Compute the convex hull
     hull = ConvexHull(unique_points)
     return [unique_points[i] for i in hull.vertices]
-
-
-def generate_kml_initial_point(lat, lon, name="Initial Point"):
-    """
-    Generate a KML placemark for the initial point or monument.
-    
-    Parameters:
-    - lat (float): Latitude of the point.
-    - lon (float): Longitude of the point.
-    - name (str, optional): Name for the placemark.
-
-    Returns:
-    - str: KML formatted string for the placemark.
-    """
-
-    if lat is None or lon is None:  # Check if the coordinates are valid
-        return ""  # Return an empty string if the coordinates are invalid
-
-    kml_placemark = f'''
-    <Placemark>
-      <name>{name}</name>
-      <Point>
-        <coordinates>
-          {lon},{lat}
-        </coordinates>
-      </Point>
-    </Placemark>
-    '''
-    return kml_placemark
 
 
 def generate_kml_placemark(lat, lon, name="Reference Point", description="Initial Reference Point"):

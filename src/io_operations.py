@@ -5,7 +5,39 @@ Handles input/output operations for the program. It prompts the user for inputs
 and handles user choices related to the main workflow.
 """
 
+
 from utils import (get_coordinate_in_dd_or_dms, parse_dd_or_dms)
+
+
+def gather_tie_point_coordinates():
+    """Gather initial coordinates (Tie Point) from the user."""
+    coordinate_format = get_tie_point_coordinate_format()
+    
+    if coordinate_format == "1":  # Checking for "1" instead of "DD"
+        lat = get_coordinate_in_dd_or_dms(coordinate_format, "latitude")
+        if lat is None:  # User chose to exit
+            return None, None
+        lon = get_coordinate_in_dd_or_dms(coordinate_format, "longitude")
+        if lon is None:  # User chose to exit
+            return None, None
+
+    elif coordinate_format == "2":  # Checking for "2" instead of "DMS"
+        lat = get_coordinate_in_dd_or_dms(coordinate_format, "latitude")
+        if lat is None:  # User chose to exit
+            return None, None
+        lon = get_coordinate_in_dd_or_dms(coordinate_format, "longitude")
+        if lon is None:  # User chose to exit
+            return None, None
+
+    elif coordinate_format == "3":  # Checking for "3" instead of "Main Menu"
+        return None, None
+
+    else:
+        print("Invalid choice. Returning to main menu.")
+        return None, None
+    
+    return lat, lon
+
 
 def get_coordinate_format_only():
     """Prompt the user to select a coordinate format."""
@@ -18,7 +50,6 @@ def get_coordinate_format_only():
         if choice in ["1", "2", "3"]:
             return choice
         print("Invalid choice. Please enter 1, 2 or 3.")
-
 
 
 def get_tie_point_coordinate_format():
@@ -161,3 +192,11 @@ def get_add_point_decision():
     - str: User's decision on whether to add more points.
     """
     return input("Would you like to enter another point before closing the polygon? (yes/no): ").strip().lower()
+
+
+def get_export_decision():
+    return input("Do you want to export the polygon to a KML file or Data File? (yes/no): ").lower() == 'yes'
+
+
+def get_file_type_choice():
+    return input("Would you like to save a (K)ML, (D)ata File or (B)oth? ").upper()
