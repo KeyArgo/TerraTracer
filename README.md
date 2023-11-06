@@ -1,4 +1,4 @@
-# TerraTracer: Geolocation Made Simple
+# TerraTracer: Streamlined Geospatial Mapping & Claim Staking
 
 ## About TerraTracer
 
