@@ -1,5 +1,5 @@
 ## Alpha Stage Notice
-Please note: TerraTracer is currently in its alpha stages of development. This means the software is still under active development and may contain bugs. We are aware of these issues and are actively working to resolve them. Users are encouraged to provide feedback and report any issues, as this will greatly aid in the development process and help us move towards a stable release.
+**Please note:** TerraTracer is currently in its alpha stages of development. This means the software is still under active development and may contain bugs. We are aware of these issues and are actively working to resolve them. Users are encouraged to provide feedback and report any issues, as this will greatly aid in the development process and help us move towards a stable release.
 
 # TerraTracer: Streamlined Geospatial Mapping & Claim Staking
 
