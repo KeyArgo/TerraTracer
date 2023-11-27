@@ -2,104 +2,96 @@
 utils.py
 
 Utility functions that offer general-purpose tools and transformations. Includes:
-- Data transformations between JSON and KML formats.
+- Data transformations between TZT and KML formats.
 """
 
-import re  # Regular expression operations for string processing
-from geopy.distance import distance as geopy_distance  # Geographical distance calculations
-
+import re
+from geopy.distance import distance as geopy_distance
 
 def validate_dms(degrees, coordinate_name):
     """
-    Validates the degrees value for latitude (0 to 90) and longitude (0 to 180) in DMS format.
-
+    Validates the degrees value for latitude and longitude in DMS format.
+    
     Parameters:
-    - degrees (float): Degree value to validate. For latitude, the range is 0 to 90. 
-                       For longitude, it's 0 to 180.
+    - degrees (float): Degree value to validate.
     - coordinate_name (str): Name of the coordinate ("latitude" or "longitude").
 
     Raises:
-    - ValueError: If degrees value is outside the valid range for the given coordinate.
+    - ValueError: If degrees value is invalid.
     """
     if coordinate_name == "latitude" and (degrees < 0 or degrees > 90):
         raise ValueError("Invalid latitude degree value. It should be between 0 and 90.")
     elif coordinate_name == "longitude" and (degrees < 0 or degrees > 180):
         raise ValueError("Invalid longitude degree value. It should be between 0 and 180.")
+    elif degrees == 0:
+        raise ValueError("Degree value cannot be zero.")
 		
 
 def get_coordinate_in_dd_or_dms(coordinate_format, coordinate_name="latitude"):
     """
-    Prompts the user to enter coordinates in either decimal degrees (DD) or degrees, 
-    minutes, seconds (DMS) format. DD is a decimal format, while DMS includes degrees, 
-    minutes, and seconds.
-
+    Prompts the user to enter coordinates in either decimal degrees (DD) or degrees, minutes, seconds (DMS) format.
+    
     Parameters:
     - coordinate_format (str): The chosen format ("1" for DD, "2" for DMS).
     - coordinate_name (str, optional): Name of the coordinate ("latitude" or "longitude").
 
     Returns:
-    - float or None: Coordinate value in the chosen format or None if the user exits.
+    - float or None: Coordinate value in decimal degrees or None if the user chooses to exit.
     """
-    print(f"\nEntering `get_coordinate_in_dd_or_dms` for {coordinate_name}.")
-
     print(f"\n-------------------- Enter {coordinate_name.capitalize()} --------------------")
     
     while True:
         if coordinate_format == "1":
-            print(f"Entering DD format for {coordinate_name}.")
             print(f"\n{coordinate_name.capitalize()} (DD Format):")
             example_value = "68.0106" if coordinate_name == "latitude" else "-110.0106"
             print(f"Example: {example_value}")
-            value = input("\nEnter your value or type 'exit' to go to main menu: ").strip()
-            print(f"Raw DD input received: {value}")
+            value = input("\nEnter your value or type 'exit' to go to main menu: ")
             if value.lower() == 'exit':
-                print("Exiting `get_coordinate_in_dd_or_dms` due to user exiting.")
                 return None
             try:
-                result = float(value)
-                print(f"Exiting `get_coordinate_in_dd_or_dms` with DD value: {result}")
-                return result
-            except ValueError:
-                print("Invalid input. Please enter a valid decimal degree value.")
+                # Check if entered value is in DMS format
+                if any(char in value for char in ['°', '\'', '\"']):
+                    raise ValueError("DMS format detected. Please enter in decimal degrees as chosen.")
+                return float(value)
+            except ValueError as e:
+                print(f"\nError: {e}. Please try again.")
 
         elif coordinate_format == "2":
-            print(f"Entering DMS format for {coordinate_name}.")
             print(f"\n{coordinate_name.capitalize()} (DMS Format):")
             example_format = "68° 00' 38\"N" if coordinate_name == "latitude" else "110° 00' 38\"W"
             print(f"Example: {example_format}")
-            dms_str = input("\nEnter your value or type 'exit' to go to main menu: ").strip()
-            print(f"Raw DMS input received: {dms_str}")
+            print("\nEnter direction in DMS format. Examples:\n"
+                  "- N 68° 00' 38\" E\n"
+                  "- N 68 degrees 0' 38\" E\n"
+                  "- n 68 0 38 e")
+            dms_str = input("\nEnter your value or type 'exit' to go to main menu: ")
             if dms_str.lower() == 'exit':
-                print("Exiting `get_coordinate_in_dd_or_dms` due to user exiting.")
                 return None
             try:
                 _, dd_value = parse_and_convert_dms_to_dd(dms_str, coordinate_name)
-                print(f"Exiting `get_coordinate_in_dd_or_dms` with DMS value: {dd_value}")
                 return dd_value
             except ValueError as e:
-                print(f"Error: {e}. Please try again.")
+                print(f"\nError: {e}. Please try again.")
         else:
-            print("Invalid coordinate format choice detected. Exiting `get_coordinate_in_dd_or_dms` with None.")
+            print("\nInvalid choice.")
             return None
 
 
 def parse_and_convert_dms_to_dd(dms_str, coordinate_name):
     """
-    Parses a DMS (Degrees, Minutes, Seconds) formatted string and converts it to decimal degrees.
+    Parses a DMS formatted string and converts it to decimal degrees.
     
-    The DMS string format should be 'N/S/E/W degrees° minutes\' seconds"', e.g., "68° 00' 38\"N".
-
     Parameters:
     - dms_str (str): String in DMS format.
     - coordinate_name (str): Name of the coordinate ("latitude" or "longitude").
 
     Returns:
     - tuple: (Primary direction [N/S/E/W], Coordinate value in decimal degrees).
-    - Raises ValueError for invalid DMS string formats.
     """
     match = re.match(r"(?i)([NSEW])?\s*(\d{1,3})[^\d]*(°|degrees)?\s*(\d{1,2})?'?\s*(\d{1,2}(\.\d+)?)?\"?\s*([NSEW])?", dms_str)
     if not match:
-        raise ValueError("Invalid DMS string format.")
+        print("Invalid DMS string format. Please try again.")
+        return None, None
     
     groups = match.groups()
     primary_direction = groups[0] if groups[0] in ["N", "S", "E", "W"] else (groups[-1] if groups[-1] in ["N", "S", "E", "W"] else None)
@@ -112,24 +104,19 @@ def parse_and_convert_dms_to_dd(dms_str, coordinate_name):
     
     if primary_direction in ["S", "W"]:
         dd = -dd
-    
+        
     return primary_direction, dd
-
 
 def parse_and_convert_dms_to_dd_survey(dms_str, coordinate_name):
     """
-    Parses a DMS formatted string in land survey notation and converts it to decimal degrees.
-
-    This function is designed to handle DMS strings in land survey format, which typically involves
-    specific notation for bearings. It validates the format and calculates the equivalent bearing in decimal degrees.
-
+    Parses a DMS formatted string in land survey notation and returns the bearing in decimal degrees.
+    
     Parameters:
-    - dms_str (str): String in DMS land survey format (e.g., "N 45° 30' 30\" E").
+    - dms_str (str): String in DMS land survey format.
     - coordinate_name (str): Name of the coordinate ("latitude" or "longitude").
 
     Returns:
     - float: Bearing in decimal degrees.
-    - Raises ValueError for invalid DMS string formats.
     """
     match = re.match(r"(?i)([NSEW])\s*(\d+)[^\d]*(°|degrees)?\s*(\d+)?'?\s*(\d+(\.\d+)?)?\"?\s*([NSEW])?$", dms_str)
     if not match:
@@ -164,18 +151,12 @@ def parse_and_convert_dms_to_dd_survey(dms_str, coordinate_name):
     
 def parse_dd_or_dms(coordinate_format):
     """
-    Processes the user's input for orientation and direction based on the chosen format (DD or DMS).
-
-    This function prompts the user to enter orientation and direction in either Decimal Degrees (DD) 
-    or Degrees, Minutes, and Seconds (DMS) format. It handles invalid inputs effectively and converts 
-    the input into a bearing in decimal degrees.
-
-    Parameters:
-    - coordinate_format (str): The chosen format ("1" for DD, "2" for DMS).
+    Process the user's input for direction based on the provided format (either DD or DMS).
 
     Returns:
-    - float: The calculated bearing in decimal degrees, or None if the user exits.
+    - float: Bearing in decimal degrees.
     """
+
     # Prompt the user for a valid coordinate_format if it's None or not "1" or "2"
     while coordinate_format not in ["1", "2"]:
         print("Please specify the coordinate format: (1 for DD, 2 for DMS)")
@@ -251,46 +232,30 @@ def parse_dd_or_dms(coordinate_format):
                     print("Invalid DMS string format. Please try again.")
 
 
-def parse_dms_to_dd_test(dms_str):
-    """
-    Converts a DMS string to decimal degrees for testing and verification purposes.
+def transform_tzt_data_to_kml_format(parsed_data):
+    data = {
+        'initial': {
+            'lat': float(parsed_data['initial']['latitude']),
+            'lon': float(parsed_data['initial']['longitude'])
+        },
+        'monument': {
+            'label': parsed_data['monument']['label'],
+            'lat': float(parsed_data['monument']['latitude']),
+            'lon': float(parsed_data['monument']['longitude']),
+            'bearing_from_prev': float(parsed_data['monument']['bearing from previous'].split('°')[0]),
+            'distance_from_prev': float(parsed_data['monument']['distance from previous'].split(' ')[0])
+        },
+        'polygon': []
+    }
 
-    This function is specifically designed for testing the accuracy of conversions from DMS format to decimal degrees.
-    It handles various formats of DMS strings and correctly interprets cardinal directions. The function raises
-    a ValueError for invalid formats or combinations of directions.
+    for key, value in parsed_data['polygon'].items():
+        if 'latitude' in key:
+            point = {
+                'lat': float(value),
+                'lon': float(parsed_data['polygon'][f'longitude {key.split()[-1]}']),
+                'bearing_from_prev': float(parsed_data['polygon'][f'bearing from previous {key.split()[-1]}'].split('°')[0]),
+                'distance_from_prev': float(parsed_data['polygon'][f'distance from previous {key.split()[-1]}'].split(' ')[0])
+            }
+            data['polygon'].append(point)
 
-    Example DMS string: "N 68° 00' 38\" E", which would be converted to a decimal degree value based on the
-    cardinal directions provided.
-
-    Args:
-    - dms_str (str): The DMS string in a format like "N 68° 00' 38\" E".
-
-    Returns:
-    - float: The converted bearing in decimal degrees.
-    - Raises ValueError for invalid DMS string formats or invalid combinations of directions.
-    """
-    match = re.match(r"(?i)([NSEW])?\s*(\d+)[^\d]*(\d+)?'?\s*(\d+(\.\d+)?)?\"?\s*([NSEW])?$", dms_str.strip())
-    if not match:
-        raise ValueError("Invalid DMS string format.")
-
-    groups = match.groups()
-    start_direction = groups[0].upper() if groups[0] else None
-    turn_direction = groups[-1].upper() if groups[-1] else None
-    degrees = float(groups[1])
-    minutes = float(groups[2]) if groups[2] else 0
-    seconds = float(groups[3]) if groups[3] else 0
-
-    dd = degrees + minutes / 60 + seconds / 3600
-
-    if start_direction == "N" and turn_direction == "E":
-        bearing = dd
-    elif start_direction == "N" and turn_direction == "W":
-        bearing = 360 - dd
-    elif start_direction == "S" and turn_direction == "E":
-        bearing = 180 - dd
-    elif start_direction == "S" and turn_direction == "W":
-        bearing = 180 + dd
-    else:
-        raise ValueError("Invalid combination of directions.")
-
-    return bearing
+    return data
