@@ -8,11 +8,21 @@ Functions that handle data computations, transformations, and general operations
 
 # Standard library imports
 import math  # Used for basic mathematical operations
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 # Third-party library imports
 from geopy.point import Point  # Used for representing geographical points
 from geographiclib.geodesic import Geodesic  # Provides geodesic calculations
 from scipy.spatial import ConvexHull  # Used for computations related to convex hulls
+
+# Imports from io_operations
+from io_operations import (
+    get_computation_method,
+    get_bearing_and_distance
+)
+
 
 # Spherical Model
 def compute_gps_coordinates_spherical(lat, long, bearing, distance):

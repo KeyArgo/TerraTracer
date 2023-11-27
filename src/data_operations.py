@@ -4,9 +4,16 @@ data_operations.py
 Handles the creation, manipulation, and validation of data structures used 
 in the main program workflow.
 """
+import os
 import logging
+import json
+import xml.etree.ElementTree as ET
+from pathlib import Path
 from geopy.distance import distance as geopy_distance
 from geopy.distance import geodesic
+
+from file_io import export_json_to_kml
+
 
 logging.basicConfig(level=logging.DEBUG, filename='../logs/application.log', filemode='a', format='%(asctime)s:%(levelname)s:%(message)s')
 
@@ -322,3 +329,20 @@ def finalize_data(data, use_same_format_for_all, coordinate_format, choice):
 
     data['units'] = 'imperial'
     return data
+
+
+def generate_kml_from_json(json_data):
+    """
+    Generate KML data from JSON data and save it using export_json_to_kml.
+
+    Args:
+        json_data (dict): The JSON data to convert.
+    """
+    try:
+        kml_file_name = input("Enter name for KML file (without extension): ")
+        if export_json_to_kml(json_data, kml_file_name):
+            print(f"JSON data successfully converted and saved as KML.")
+        else:
+            print("Failed to generate KML data.")
+    except Exception as e:
+        print(f"Error generating KML data: {e}")
