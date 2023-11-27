@@ -11,7 +11,7 @@ from pathlib import Path
 # Local module imports
 from processes import create_kml_process
 from data_operations import generate_kml_from_json
-from placemark_operations import create_placemarks_process 
+#from placemark_operations import create_placemarks_process 
 from file_io import import_json_data, save_kml_to_file
 
 
