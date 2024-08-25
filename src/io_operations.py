@@ -309,12 +309,16 @@ def get_file_type_choice():
     Prompt the user to choose a file type for saving data.
 
     This function asks the user to select between saving data as a KML file, a Data file, 
-    or both. The user response is converted to uppercase for consistent processing.
+    a GeoJSON file, or all formats. The user response is converted to uppercase for consistent processing.
 
     Returns:
-    - str: The user's choice as 'K' for KML, 'D' for Data File, or 'B' for Both.
+    - str: The user's choice as 'K' for KML, 'D' for Data File, 'G' for GeoJSON, or 'B' for All.
     """
-    return input("Would you like to save a (K)ML, (D)ata File or (B)oth? ").upper()
+    while True:
+        choice = input("Would you like to save as (K)ML, (D)ata File, (G)eoJSON, or (A)ll? ").upper()
+        if choice in ['K', 'D', 'G', 'A']:
+            return choice
+        print("Invalid choice. Please enter K, D, G, or A.")
 
 
 def polygon_main_menu():

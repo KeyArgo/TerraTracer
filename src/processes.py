@@ -6,70 +6,30 @@ from other modules. Includes the overall process of converting JSON formatted
 data to KML.
 """
 
-
-# Standard library imports for JSON handling, file operations, logging, and date-time manipulations
 import json
 import os
 import logging
+import geojson
 from datetime import datetime
-
-# Third-party library imports
 from geopy.distance import distance as geopy_distance
 from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 
+# Import statements (keep these as they were in your original file)
+from computation import gather_monument_data, gather_polygon_points, compute_point_based_on_method
+from file_io import save_kml_to_file, generate_kml_placemark, generate_complete_kml, generate_kml_polygon, setup_directories
+from io_operations import (get_coordinate_format_only, ask_use_same_format_for_all, polygon_main_menu, 
+                           get_num_points_to_compute, tie_point_menu, get_export_decision, 
+                           get_file_type_choice, gather_tie_point_coordinates, get_no_tie_point_coordinates)
+from data_operations import initialize_data, check_polygon_closure, finalize_json_structure, finalize_data, is_polygon_close_to_being_closed
+from display_operations import display_computed_point, display_starting_point, display_monument_point
+
+# Setup logging
 log_directory = "../logs"
 if not os.path.exists(log_directory):
     os.makedirs(log_directory)
-    
-# Configure logging to debug level with output directed to a file in '../logs' directory
-logging.basicConfig(level=logging.DEBUG, filename='../logs/application.log', filemode='a', format='%(asctime)s:%(levelname)s:%(message)s')
-# Explanation: Configures logging to debug level. All logs will be appended to 'application.log' in '../logs' directory.
-# The log format includes timestamp, log level, and the log message.
-
-# Imports from computation
-from computation import (
-    gather_monument_data,
-    gather_polygon_points
-)
-
-# Imports from file_io
-from file_io import (
-    save_kml_to_file,
-    generate_kml_placemark,
-    generate_complete_kml,
-    generate_kml_polygon,
-    setup_directories
-)
-
-# Imports from io_operations
-from io_operations import (
-    get_coordinate_format_only,
-    ask_use_same_format_for_all,
-    polygon_main_menu,
-    get_num_points_to_compute,
-    tie_point_menu,
-    get_export_decision,
-    get_file_type_choice,
-    gather_tie_point_coordinates,
-    get_no_tie_point_coordinates
-)
-
-# Imports from data_operations
-from data_operations import (
-    initialize_data,
-    check_polygon_closure,
-    finalize_json_structure,
-    finalize_data,
-    is_polygon_close_to_being_closed,
-)
-
-# Imports from display_operations
-from display_operations import (
-    display_computed_point,
-    display_starting_point,
-    display_monument_point,
-)
+logging.basicConfig(level=logging.DEBUG, filename='../logs/application.log', filemode='a', 
+                    format='%(asctime)s:%(levelname)s:%(message)s')
 
 
 def create_kml_content(data, polygon_name="GPS Polygon and Reference Point"):
@@ -216,88 +176,78 @@ def export_json(data, json_path, tie_point_used, polygon_name):
 
 
 def create_kml_process(polygon_name):
-    """
-    Orchestrates the process of creating KML and JSON files from polygon data.
-    
-    Guides the user through data gathering, checks polygon closure, and exports
-    data to KML and/or JSON format based on user input.
-
-    Args:
-        polygon_name (str): The name of the polygon to use in the files.
-    """
-    data, tie_point_used = gather_data_from_user()
-    # Notify and exit if data gathering is incomplete or lacks polygon key
+    data, tie_point_used = gather_data_from_user(polygon_name)
     if not data or 'polygon' not in data:
         print("Data gathering was not completed. Exiting.")
-        return
-    
-    # Extract and display the latitude and longitude points of the polygon
+        return None
+
     points = [(point['lat'], point['lon']) for point in data['polygon']]
     print("Polygon Points:", points)
 
-    # Generate KML content using the gathered data and polygon name
     kml_content = create_kml_content(data, polygon_name)
     
-    # Automatically close the polygon if it is not closed
     if not check_polygon_closure(data):
         print("Warning: Your polygon is not closed. Automatically closing the polygon.")
         closing_point = data['polygon'][0].copy()
         data['polygon'].append(closing_point)
-        closing_point_id = closing_point['id']
-        # Ensure the closing point is added to the construction sequence
-        if data['construction_sequence'][-1] != closing_point_id:
+        closing_point_id = closing_point.get('id', 'P1')
+        if 'construction_sequence' in data and data['construction_sequence'][-1] != closing_point_id:
             data['construction_sequence'].append(closing_point_id)
 
     if get_export_decision():
-       # Get user choice for file type (KML, JSON, or Both)
-        file_type_choice = get_file_type_choice()
-        # Prepare directories for saving KML and JSON files
+        file_type_choice = get_file_type_choice().upper()  # Convert to uppercase
         kml_directory, json_directory = setup_directories()
 
-        # Derive default filename from the polygon name
         default_filename = polygon_name.replace(" ", "_")
         filename = input(f"Enter the filename for the file (without extension) [{default_filename}]: ") or default_filename
         kml_path = os.path.join(kml_directory, f"{filename}.kml")
         json_path = os.path.join(json_directory, f"{filename}.json")
+        geojson_path = os.path.join(json_directory, f"{filename}.geojson")  # Add GeoJSON path
 
-        # Loop to ensure unique filenames
-        while os.path.exists(kml_path) or os.path.exists(json_path):
+        while os.path.exists(kml_path) or os.path.exists(json_path) or os.path.exists(geojson_path):
             print("A file with that name already exists. Please choose a different filename.")
             filename = input(f"Enter a new filename for the file (without extension) [{default_filename}]: ") or default_filename
             kml_path = os.path.join(kml_directory, f"{filename}.kml")
             json_path = os.path.join(json_directory, f"{filename}.json")
+            geojson_path = os.path.join(json_directory, f"{filename}.geojson")  # Update GeoJSON path
 
-        # Log the data before exporting
         logging.debug("Data before exporting: %s", data)
 
-        # Export KML file
-        try:
-            if file_type_choice in ["K", "B"]:
+        if file_type_choice in ["K", "A"]:
+            try:
                 export_kml(data, kml_content, kml_path, polygon_name, points)
                 logging.info("KML file exported successfully: %s", kml_path)
                 print(f"KML file exported successfully: {kml_path}")
-        except Exception as e:
-            logging.error("Failed to export KML file: %s", e)
-            print(f"Failed to export KML file: {e}")
+            except Exception as e:
+                logging.error("Failed to export KML file: %s", e)
+                print(f"Failed to export KML file: {e}")
 
-        # Export JSON file
-        try:
-            if file_type_choice in ["D", "B"]:
+        if file_type_choice in ["D", "A"]:
+            try:
                 export_json(data, json_path, tie_point_used, polygon_name)
                 print(f"JSON file exported successfully: {json_path}")
-        except Exception as e:
-            logging.error("Failed to export JSON file: %s", e)
-            print(f"Failed to export JSON file: {e}")
+            except Exception as e:
+                logging.error("Failed to export JSON file: %s", e)
+                print(f"Failed to export JSON file: {e}")
 
-        # Confirm file save based on user's file type choice
-        if file_type_choice == 'B':
-            print("Both KML and JSON files have been saved.")
+        if file_type_choice in ["G", "A"]:  # Add GeoJSON option
+            try:
+                geojson_path = os.path.join(json_directory, f"{filename}.geojson")
+                save_as_geojson(data, geojson_path)
+                print(f"GeoJSON file exported successfully: {geojson_path}")
+            except Exception as e:
+                logging.error("Failed to export GeoJSON file: %s", e)
+                print(f"Failed to export GeoJSON file: {e}")
+
+        if file_type_choice == 'A':
+            print("KML, JSON, and GeoJSON files have been saved.")
         elif file_type_choice == 'K':
             print("KML file has been saved.")
         elif file_type_choice == 'D':
             print("JSON file has been saved.")
+        elif file_type_choice == 'G':
+            print("GeoJSON file has been saved.")
     else:
-        # Notify if the export process is cancelled by the user
         print("Export cancelled by the user.")
 
     return data
@@ -389,80 +339,109 @@ def main_choice_2_process(data):
     return data, points, choice, coordinate_format  # Return all four values
 
 
-def gather_data_from_user():
+def ensure_directories_exist():
     """
-    Interactively gathers data from the user to form polygon data.
-
-    This function handles the collection of tie point coordinates, polygon points, 
-    and related settings. It offers different paths based on user choices made through 
-    a series of menus.
-
-    Returns:
-        tuple: A tuple containing the gathered data dictionary and a boolean indicating 
-               whether a tie point was used.
+    Ensures that the necessary directories for saving JSON and GeoJSON files exist.
+    If they do not exist, they are created automatically.
     """
-    data = initialize_data()  # Initialize an empty data structure for storing polygon data
-    tie_point_used = False    # Initialize a flag to track if a tie point is used
-    use_same_format_for_all = False  # Flag to maintain the same coordinate format for all points
-    main_choice = polygon_main_menu()  # Present the main menu to the user and capture their choice
-    choice = None  # Placeholder for user's choice related to computation methods
+    directories = ["saves/json", "saves/geojson"]
+    for directory in directories:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Directory created: {directory}")
+            
 
-    # Handle the scenario where the user opts to start with a tie point
+def gather_data_from_user(polygon_name):
+    ensure_directories_exist()
+
+    data = initialize_data()
+    log_data = {
+        "polygon_name": polygon_name,
+        "coordinate_format": "",
+        "tie_point": {},
+        "polygon_points": [],
+        "metadata": {
+            "user": "UserName",
+            "date_created": datetime.now().isoformat()
+        }
+    }
+    
+    tie_point_used = False
+    use_same_format_for_all = False
+    main_choice = polygon_main_menu()
+    choice = None
+
     if main_choice == "1":
-        tie_point_used = True  # Set flag indicating that a tie point is being used
-        lat, lon = gather_tie_point_coordinates()  # Request coordinates for the tie point from the user
-        if lat is None and lon is None:  # If no coordinates are provided, exit to the main menu
+        tie_point_used = True
+        lat, lon = gather_tie_point_coordinates()
+        if lat is None and lon is None:
             print("Exiting to main menu.")
             return None, tie_point_used
 
-        # Store the tie point data in the data dictionary
-        data.setdefault("tie_point", {}).update({"lat": lat, "lon": lon})  # Initializes 'tie_point' if not present and updates it
-        display_starting_point(lat, lon)  # Visually present the starting point to the user for confirmation
-        coordinate_format = get_coordinate_format_only()  # Get the coordinate format from the user
-        use_same_format_for_all = ask_use_same_format_for_all()  # Ask if the same format will be used for all points
-        point_use_choice = tie_point_menu()  # Present additional options for using the tie point
+        data.setdefault("tie_point", {}).update({"lat": lat, "lon": lon})
+        log_data["tie_point"] = {"latitude": lat, "longitude": lon}
+        log_data["coordinate_format"] = get_coordinate_format_only()
+        display_starting_point(lat, lon)
+        use_same_format_for_all = ask_use_same_format_for_all()
+        point_use_choice = tie_point_menu()
 
-        # Gather and process monument data based on user's choice
         if point_use_choice == "1":
-            coordinate_format, results = gather_monument_data(coordinate_format, lat, lon, use_same_format_for_all)
+            coordinate_format, results = gather_monument_data(log_data["coordinate_format"], lat, lon, use_same_format_for_all)
             if results:
-                # Unpack and store monument data
                 lat, lon, monument_label, bearing, distance = results
                 data["monument"] = {"lat": lat, "lon": lon, "label": monument_label, "bearing_from_prev": bearing, "distance_from_prev": distance}
-                display_monument_point(lat, lon)  # Show the monument point to the user
-                # Process additional polygon points
+                log_data["polygon_points"].append({
+                    "id": monument_label,
+                    "bearing": bearing,
+                    "distance_feet": distance,
+                    "computed_coordinates": {"lat": lat, "lon": lon}
+                })
+                display_monument_point(lat, lon)
                 num_points = get_num_points_to_compute()
-                data, new_choice = transition_to_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all, num_points)
+                data, new_choice = transition_to_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all, num_points, log_data)
                 if new_choice is not None:
-                    choice = new_choice  # Update choice if a new one is provided
+                    choice = new_choice
             else:
-                # Handle case where monument data is not available
                 print("Monument data could not be gathered. Exiting to main menu.")
                 return None, tie_point_used
         elif point_use_choice == "2":
-            # Directly proceed to gathering additional polygon points without monument data
             num_points = get_num_points_to_compute()
-            data, new_choice = transition_to_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all, num_points)
+            data, new_choice = transition_to_polygon_points(data, log_data["coordinate_format"], lat, lon, use_same_format_for_all, num_points, log_data)
             if new_choice is not None:
-                choice = new_choice  # Update choice if a new one is provided
+                choice = new_choice
 
-    # Handle the scenario where the user opts for the second main choice
     elif main_choice == "2":
-        data, points, choice, coordinate_format = main_choice_2_process(data)
-        if data is None:  # Check if the user exited the process
+        lat, lon = get_initial_polygon_point()
+        if lat is None or lon is None:
             print("Exiting to main menu.")
             return None, tie_point_used
+        
+        log_data["coordinate_format"] = get_coordinate_format_only()
+        num_points = get_num_points_to_compute()
+        data, new_choice = transition_to_polygon_points(data, log_data["coordinate_format"], lat, lon, use_same_format_for_all, num_points, log_data)
+        if new_choice is not None:
+            choice = new_choice
 
-    # Finalize the data if any polygon points have been added
     if 'polygon' in data and data['polygon']:
-        data = finalize_data(data, use_same_format_for_all, coordinate_format, choice)
+        data = finalize_data(data, use_same_format_for_all, log_data["coordinate_format"], choice)
     else:
-        # Handle case where no polygon points are added
         print("No polygon points were added. Exiting to main menu.")
         return None, tie_point_used
 
-    return data, tie_point_used  # Return the gathered data and tie point usage flag
+    # Save to JSON
+    filename = f"{log_data['polygon_name'].replace(' ', '_')}"
+    json_path = f"saves/json/{filename}.json"
+    with open(json_path, "w") as json_file:
+        json.dump(log_data, json_file, indent=4)
+    print(f"JSON file saved successfully at {json_path}")
 
+    # Save to GeoJSON
+    geojson_path = f"saves/geojson/{filename}.geojson"
+    save_as_geojson(log_data, geojson_path)
+    print(f"GeoJSON file saved successfully at {geojson_path}")
+
+    return data, tie_point_used
+    
 
 def get_initial_polygon_point():
     """
@@ -479,10 +458,9 @@ def get_initial_polygon_point():
     print("\n--------------- Initial Polygon Point Entry ---------------")
     print("Please enter the initial point of your polygon.")
     
-    # Obtain the initial polygon point's coordinates without using a tie point
     lat, lon = get_no_tie_point_coordinates()
     
-    if lat is None or lon is None:  # Check if user exited without providing complete coordinates
+    if lat is None or lon is None:
         print("Exiting. No complete coordinates provided.")
         return None, None
 
@@ -554,32 +532,83 @@ def prepare_points_for_distance_check(points):
     return prepared_points
 
 
-def transition_to_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all, num_points):
-    """
-    Facilitates the transition to gathering additional points for the polygon.
+def transition_to_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all, num_points, log_data):
+    from io_operations import get_bearing_and_distance
 
-    This function is a key part of the workflow for constructing a polygon. It invokes a helper function
-    to gather additional polygon points based on user inputs and checks for polygon closure.
+    for i in range(num_points):
+        if not use_same_format_for_all:
+            coordinate_format = get_coordinate_format_only()
+        
+        bearing, distance = get_bearing_and_distance(coordinate_format)
+        if bearing is None and distance is None:
+            break
+        
+        new_lat, new_lon = compute_new_coordinates(lat, lon, bearing, distance)
+        
+        point_data = {
+            "id": f"P{len(data.get('polygon', [])) + 1}",
+            "bearing": bearing,
+            "distance_feet": distance,
+            "lat": new_lat,  # Add this line
+            "lon": new_lon,  # Add this line
+            "computed_coordinates": {"lat": new_lat, "lon": new_lon}
+        }
+        
+        data.setdefault('polygon', []).append(point_data)
+        log_data["polygon_points"].append(point_data)
+        
+        display_computed_point(data['polygon'], new_lat, new_lon)
+        
+        lat, lon = new_lat, new_lon
 
-    Args:
-        data (dict): The current state of the data dictionary containing polygon information.
-        coordinate_format (str): The format of the coordinates (e.g., 'DD', 'DMS').
-        lat (float): Latitude of the current point.
-        lon (float): Longitude of the current point.
-        use_same_format_for_all (bool): Flag indicating if the same coordinate format is used for all points.
-        num_points (int): The number of points to gather for the polygon.
+    return data, None
 
-    Returns:
-        tuple: A tuple containing the updated data dictionary and a choice variable (if any) indicating 
-               a change in the method or process for point calculation.
-    """
-    # Invoke gather_polygon_points to continue the polygon point collection process
-    data, new_points, new_choice = gather_polygon_points(
-        data, coordinate_format, lat, lon, use_same_format_for_all, num_points
-    )  # Collect additional polygon points and record any new choices made by the user
-
-    # Perform a check to determine if the polygon is closed after adding new points
-    is_polygon_closed = check_polygon_closure(data)  # Check if the polygon formed is closed
+def compute_new_coordinates(lat, lon, bearing, distance):
+    # Convert distance from feet to meters
+    distance_meters = distance * 0.3048
     
-    # Return the updated data dictionary and any new choice made during the point collection process
-    return data, new_choice  # Return the updated polygon data and any change in point calculation method
+    # Use Geodesic calculations for high precision
+    geod = Geodesic.WGS84
+    result = geod.Direct(lat, lon, bearing, distance_meters)
+    
+    return result['lat2'], result['lon2']
+
+def ensure_directories_exist():
+    directories = ["saves/json", "saves/geojson"]
+    for directory in directories:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Directory created: {directory}")
+
+def save_as_geojson(log_data, geojson_path):
+    features = []
+    coordinates = []
+
+    for point in log_data["polygon_points"]:
+        coordinates.append([point["computed_coordinates"]["lon"], point["computed_coordinates"]["lat"]])
+
+    geojson_feature = geojson.Feature(
+        geometry=geojson.Polygon([coordinates]),
+        properties={
+            "name": log_data["polygon_name"],
+            "format": log_data["coordinate_format"],
+            "tie_point": log_data["tie_point"],
+            "points": log_data["polygon_points"]  # Include all point data
+        }
+    )
+    geojson_data = geojson.FeatureCollection([geojson_feature])
+
+    with open(geojson_path, "w") as geojson_file:
+        geojson.dump(geojson_data, geojson_file, indent=4)
+        
+def generate_metes_and_bounds(log_data):
+    description = f"Beginning at the {log_data['polygon_points'][0]['id']}, "
+    for point in log_data['polygon_points'][1:]:
+        description += f"thence {point['bearing']} {point['distance_feet']} feet to {point['id']}, "
+    description += f"thence to the point of beginning."
+    return description
+
+def update_kml_generation(log_data):
+    # Implement logic to include detailed point information in KML
+    # This might involve modifying your existing KML generation functions
+    pass
