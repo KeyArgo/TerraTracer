@@ -18,6 +18,10 @@ from geopy.distance import distance as geopy_distance
 from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 
+log_directory = "../logs"
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)
+    
 # Configure logging to debug level with output directed to a file in '../logs' directory
 logging.basicConfig(level=logging.DEBUG, filename='../logs/application.log', filemode='a', format='%(asctime)s:%(levelname)s:%(message)s')
 # Explanation: Configures logging to debug level. All logs will be appended to 'application.log' in '../logs' directory.

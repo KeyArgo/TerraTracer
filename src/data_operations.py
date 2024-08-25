@@ -5,6 +5,7 @@ Handles the creation, manipulation, and validation of data structures used
 in the main program workflow.
 """
 import os
+import math
 import logging
 import json
 import xml.etree.ElementTree as ET
@@ -16,6 +17,7 @@ from file_io import export_json_to_kml
 
 
 logging.basicConfig(level=logging.DEBUG, filename='../logs/application.log', filemode='a', format='%(asctime)s:%(levelname)s:%(message)s')
+
 
 
 def initialize_data():
