@@ -1,11 +1,11 @@
 ## Alpha Stage Notice
-**Please note:** TerraTracer is currently in its alpha stages of development. This means the software is still under active development and may contain bugs. We are aware of these issues and are actively working to resolve them. Users are encouraged to provide feedback and report any issues, as this will greatly aid in the development process and help us move towards a stable release.
+**Please note:** TerraTracer is currently in its alpha stages of development. This means the software is still under active development and may contain bugs and have non working features.
 
 # TerraTracer: Streamlined Geospatial Mapping & Claim Staking
 
 ## About TerraTracer
 
-TerraTracer is a powerful and versatile geolocation tool that empowers users to calculate precise coordinates with ease. It's designed to cater to a wide array of geospatial needs - from hikers mapping their trails, land mappers outlining property boundaries, drone enthusiasts plotting flight paths, to rockhounds marking their finds, or anyone in need of pinpointing a specific location.
+TerraTracer is a powerful and versatile geolocation tool that empowers users to calculate precise coordinates with ease. It's designed to cater to a wide array of geospatial needs - from land mapping and property delineation, current or potential mining claim owners marking mining claims, to hikers mapping their trails, or anyone in need of pinpointing a specific location based upon distance and azimuth.
 
 With TerraTracer, you can create custom geometric polygons, define individual placemarks based on coordinate inputs, and even convert your data to KML for visualization in applications like Google Earth. Its intuitive interface and robust backend ensure that your geolocation data is both accurate and useful for a variety of applications.
 
