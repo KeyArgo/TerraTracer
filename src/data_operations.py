@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from geopy.distance import distance as geopy_distance
 from geopy.distance import geodesic
-
+from geographiclib.geodesic import Geodesic
 from file_io import export_json_to_kml
 
 
@@ -136,40 +136,29 @@ def warn_if_polygon_not_closed(data):
     return polygon_closed
 
 
-def is_polygon_close_to_being_closed(points, tolerance=10):
+def is_polygon_close_to_being_closed(points, tolerance_feet=1):
     """
-    Checks if a polygon, defined by a list of points, is close to being closed within a specified tolerance.
-    The tolerance is measured in feet. The function also handles conversion of points from dictionary format
-    to tuples if necessary.
-
+    Check if the polygon is close to being closed.
+    
     Args:
-    - points (list): List of points (either as tuples or dictionaries) forming the polygon.
-    - tolerance (float): The distance tolerance in feet to determine if the polygon is close to being closed.
-
+    points (list): List of points as (lat, lon) tuples.
+    tolerance_feet (float): Maximum allowed distance between first and last points in feet.
+    
     Returns:
-    - bool: True if the polygon is close to being closed (distance between first and last points within tolerance), 
-            False otherwise.
+    bool: True if the polygon is close to being closed, False otherwise.
     """
-    # Ensure there are at least two points to compare
-    if len(points) < 2:
+    if len(points) < 3:
         return False
-
-    # Convert points to tuples if they are in dictionary format
-    points_as_tuples = [(p['lat'], p['lon']) if isinstance(p, dict) else p for p in points]
-
-    # Calculate the distance between the first and last points
-    start_point = points_as_tuples[0]
-    end_point = points_as_tuples[-1]
+    
+    start_point = points[0]
+    end_point = points[-1]
+    
+    # Calculate distance between first and last point
     distance = geopy_distance(start_point, end_point).feet
-
+    
     logging.debug(f"Distance between first and last point: {distance} feet")
-
-    # Check if the distance is within the tolerance for closing the polygon
-    if distance <= tolerance:
-        logging.info("The polygon is close enough to being closed.")
-        return True
-
-    return False
+    
+    return distance <= tolerance_feet
 
 
 def check_polygon_closure(data, reference_point=None):
@@ -284,51 +273,32 @@ def finalize_json_structure(data, tie_point_used, polygon_name):
 
 
 def finalize_data(data, use_same_format_for_all, coordinate_format, choice):
-    """
-    Finalizes the data by checking if the polygon is closed or close enough to being closed, 
-    and if not, it allows for the addition of more points based on user input. The function 
-    integrates with other modules to compute new points and update the polygon data.
-
-    Args:
-    - data (dict): Data structure containing polygon and related information.
-    - use_same_format_for_all (bool): Indicates whether the same coordinate format is used for all points.
-    - coordinate_format (str): The format of the coordinates (e.g., degrees, radians).
-    - choice (str): The method choice for point computation.
-
-    Utilizes a loop for adding additional points based on user decisions until the polygon is deemed closed or close enough.
-    """
-    from computation import compute_point_based_on_method
-    from io_operations import get_add_point_decision, get_bearing_and_distance, get_coordinate_format_only
-    from display_operations import display_computed_point
-
-    # Check if the polygon is closed or close enough to being closed
-    if is_polygon_close_to_being_closed([point for point in data['polygon']]):
-        logging.info("Polygon is closed or close enough to being closed.")
-    else:
-        logging.info("Polygon is not closed. Adding more points.")
-        while True:
-            add_point_decision = get_add_point_decision()
-            if add_point_decision == 'yes':
-                lat, lon = (data['polygon'][-1]['lat'], data['polygon'][-1]['lon']) if data['polygon'] else (None, None)
-                
-                if not use_same_format_for_all:
-                    coordinate_format = get_coordinate_format_only()
-                bearing, distance = get_bearing_and_distance(coordinate_format)
-
-                if bearing is not None and distance is not None:
-                    lat, lon = compute_point_based_on_method(choice, lat, lon, bearing, distance)
-                    if lat is not None and lon is not None:
-                        data = update_polygon_data(data, lat, lon, bearing, distance)
-                        display_computed_point(data['polygon'], lat, lon)
-                    else:
-                        print("An error occurred while computing the point. Please try again.")
-                else:
-                    break
-            elif add_point_decision == 'no':
-                break
-            else:
-                print("Invalid choice. Please enter 'yes' or 'no'.")
-
+    points = [(point['lat'], point['lon']) for point in data['polygon']]
+    if is_polygon_close_to_being_closed(points):
+        logging.info("The polygon is close enough to being closed. Adjusting the last point to the initial point.")
+        first_point = data['polygon'][0]
+        last_point = data['polygon'][-1]
+        
+        # Use the user-entered values for the last segment
+        closing_point = {
+            "id": "P1",
+            "bearing": last_point['bearing'],
+            "distance_feet": last_point['distance_feet'],
+            "lat": first_point['lat'],
+            "lon": first_point['lon']
+        }
+        data['polygon'][-1] = closing_point
+        
+        # Update construction_sequence if it exists and has elements
+        if 'construction_sequence' in data and data['construction_sequence']:
+            data['construction_sequence'][-1] = 'P1'
+        elif 'construction_sequence' in data:
+            # If construction_sequence exists but is empty, initialize it
+            data['construction_sequence'] = ['P1' for _ in range(len(data['polygon']))]
+        else:
+            # If construction_sequence doesn't exist, create it
+            data['construction_sequence'] = ['P1' for _ in range(len(data['polygon']))]
+    
     data['units'] = 'imperial'
     return data
 
