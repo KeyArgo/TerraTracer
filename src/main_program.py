@@ -53,13 +53,12 @@ def main():
         elif choice == "2":
             create_placemarks_process()
         elif choice == "3":
-            script_directory = Path(__file__).parent
-            default_json_directory = script_directory / Path("../saves/json")
+            base_dir = Path(__file__).resolve().parent.parent / 'saves'
+            default_json_directory = base_dir / 'json'
             json_path = choose_file_path(default_json_directory)
             data = import_json_data(json_path)
 
             if data:
-                # Removed the redundant input for KML file name here
                 generate_kml_from_json(data)
             else:
                 print("Failed to import JSON.")
@@ -106,7 +105,10 @@ def choose_file_path(default_directory):
     Returns:
         str: The chosen file path.
     """
-    current_directory = default_directory.resolve()  # Resolve to full path
+    # Ensure we're using the correct saves directory
+    base_dir = Path(__file__).resolve().parent.parent / 'saves'
+    current_directory = base_dir / 'json'
+    
     while True:
         print(f"\nCurrent directory: {current_directory}")
         print("Files and directories:")
@@ -115,7 +117,7 @@ def choose_file_path(default_directory):
                 print(f" - {item}")
         except FileNotFoundError:
             print(f"Directory not found: {current_directory}")
-            current_directory = default_directory
+            current_directory = base_dir / 'json'
             continue
 
         choice = input("\nEnter file name to select, 'up' to go up a directory, or 'new' to enter a new path: ")

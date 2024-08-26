@@ -22,24 +22,15 @@ logging.basicConfig(level=logging.DEBUG, filename='../logs/application.log', fil
 
 
 def setup_directories():
-    """
-    Sets up directories for storing KML and JSON files.
-
-    This function creates directories to store KML and JSON files. It ensures that these directories
-    exist, and if not, they are created. The function returns the absolute paths of these directories.
-
-    Returns:
-        tuple: A tuple containing the paths to the KML and JSON directories.
-    """
-    # Define paths for KML and JSON directories
-    kml_directory = os.path.abspath(os.path.join(os.pardir, 'saves', 'kml'))
-    json_directory = os.path.abspath(os.path.join(os.pardir, 'saves', 'json'))
-
-    # Create the directories if they do not exist
-    os.makedirs(kml_directory, exist_ok=True)
-    os.makedirs(json_directory, exist_ok=True)
-
-    return kml_directory, json_directory
+    base_dir = Path(__file__).resolve().parent.parent / 'saves'
+    kml_dir = base_dir / 'kml'
+    json_dir = base_dir / 'json'
+    geojson_dir = base_dir / 'geojson'
+    
+    for directory in [kml_dir, json_dir, geojson_dir]:
+        directory.mkdir(parents=True, exist_ok=True)
+    
+    return str(kml_dir.resolve()), str(json_dir.resolve()), str(geojson_dir.resolve())
 
 
 def save_kml_to_file(kml_content, full_path):
@@ -150,18 +141,7 @@ def generate_complete_kml(placemark_kml="", polygon_kml="", polygon_name="GPS Po
 
     
 def generate_kml_polygon(points, color="#3300FF00", polygon_name="Polygon"):
-    """
-    Generate the KML representation of a polygon using a list of points.
-
-    Args:
-    - points (list of tuple): List of lat-long tuples representing the polygon vertices.
-    - color (str): Color for the polygon fill.
-    - polygon_name (str): Name of the polygon.
-
-    Returns:
-    - str: KML representation of the polygon.
-    """
-    coordinates_str = "\n".join([f"{lon},{lat}" for lat, lon in points])
+    coordinates_str = "\n".join([f"{lon},{lat}" for lon, lat in points])
     kml = f"""
     <Placemark>
       <name>{polygon_name}</name>

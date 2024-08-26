@@ -14,13 +14,11 @@ from datetime import datetime
 from geopy.distance import distance as geopy_distance
 from geopy.point import Point
 from geographiclib.geodesic import Geodesic
-
-# Import statements (keep these as they were in your original file)
 from computation import gather_monument_data, gather_polygon_points, compute_point_based_on_method
 from file_io import save_kml_to_file, generate_kml_placemark, generate_complete_kml, generate_kml_polygon, setup_directories
 from io_operations import (get_coordinate_format_only, ask_use_same_format_for_all, polygon_main_menu, 
                            get_num_points_to_compute, tie_point_menu, get_export_decision, 
-                           get_file_type_choice, gather_tie_point_coordinates, get_no_tie_point_coordinates)
+                           get_file_type_choice, gather_tie_point_coordinates, get_no_tie_point_coordinates, get_bearing_and_distance)
 from data_operations import initialize_data, check_polygon_closure, finalize_json_structure, finalize_data, is_polygon_close_to_being_closed
 from display_operations import display_computed_point, display_starting_point, display_monument_point
 
@@ -33,60 +31,33 @@ logging.basicConfig(level=logging.DEBUG, filename='../logs/application.log', fil
 
 
 def create_kml_content(data, polygon_name="GPS Polygon and Reference Point"):
-    """
-    Creates KML content for a polygon and an optional monument placemark.
-
-    This function generates KML content based on the provided polygon data. It includes
-    logic to close the polygon properly and to add a monument placemark if provided.
-
-    Args:
-        data (dict): The data containing polygon points and, optionally, a monument.
-        polygon_name (str): The name to be given to the polygon in the KML file.
-
-    Returns:
-        str: The complete KML content as a string, or None if an error occurs or data is not available.
-    """
     try:
-        # Initiating KML content generation
         if not data.get('polygon'):
             print("No polygon data available to create KML content.")
             return None
-        # Explanation: Verifies the presence of polygon data. If not available, exits the function.
 
-        # Process monument data if available
         monument_kml = ""
         polygon_kml = ""
-        # Explanation: Initializes variables for storing KML content of the monument and polygon.
 
-        # Generating placemark KML for the monument, if available
         monument = data.get('monument', {})
         if monument.get('lat') is not None and monument.get('lon') is not None:
             monument_kml = generate_kml_placemark(monument['lat'], monument['lon'], name=monument.get('label', "Monument"))
-            # Explanation: If monument data is present, generates KML for the monument placemark.
 
-        # Prepare polygon points and check if the polygon needs to be closed
-        polygon_points = [(point['lat'], point['lon']) for point in data['polygon'] if 'lat' in point and 'lon' in point]
-        # Explanation: Extracts latitude and longitude points from the polygon data.
+        polygon_points = [(point['lon'], point['lat']) for point in data['polygon'] if 'lat' in point and 'lon' in point]
 
-        # Check the distance between the last point and the first point
         if polygon_points:
             start_point = polygon_points[0]
             end_point = polygon_points[-1]
-            distance = geopy_distance(start_point, end_point).feet
-            # Explanation: Calculates the distance between the first and last points of the polygon.
+            distance = geopy_distance(start_point[::-1], end_point[::-1]).feet
 
-            # Replace last point with first point if within 10 feet, otherwise append the first point
             if distance <= 10:
                 polygon_points[-1] = start_point
             else:
                 polygon_points.append(start_point)
-            # Explanation: Closes the polygon by ensuring the last point is close enough to the first point.
 
         polygon_kml = generate_kml_polygon(polygon_points, polygon_name=polygon_name)
 
-        # Combine monument and polygon KML
         complete_kml = generate_complete_kml(monument_kml, polygon_kml, polygon_name) if monument_kml else polygon_kml
-        # Explanation: Combines the monument placemark KML and polygon KML into one complete KML string.
         return complete_kml
     except Exception as e:
         print(f"An error occurred while creating KML content: {e}")
@@ -195,21 +166,21 @@ def create_kml_process(polygon_name):
             data['construction_sequence'].append(closing_point_id)
 
     if get_export_decision():
-        file_type_choice = get_file_type_choice().upper()  # Convert to uppercase
-        kml_directory, json_directory = setup_directories()
+        file_type_choice = get_file_type_choice().upper()
+        kml_directory, json_directory, geojson_directory = setup_directories()
 
         default_filename = polygon_name.replace(" ", "_")
         filename = input(f"Enter the filename for the file (without extension) [{default_filename}]: ") or default_filename
         kml_path = os.path.join(kml_directory, f"{filename}.kml")
         json_path = os.path.join(json_directory, f"{filename}.json")
-        geojson_path = os.path.join(json_directory, f"{filename}.geojson")  # Add GeoJSON path
+        geojson_path = os.path.join(geojson_directory, f"{filename}.geojson")
 
         while os.path.exists(kml_path) or os.path.exists(json_path) or os.path.exists(geojson_path):
             print("A file with that name already exists. Please choose a different filename.")
             filename = input(f"Enter a new filename for the file (without extension) [{default_filename}]: ") or default_filename
             kml_path = os.path.join(kml_directory, f"{filename}.kml")
             json_path = os.path.join(json_directory, f"{filename}.json")
-            geojson_path = os.path.join(json_directory, f"{filename}.geojson")  # Update GeoJSON path
+            geojson_path = os.path.join(geojson_directory, f"{filename}.geojson")
 
         logging.debug("Data before exporting: %s", data)
 
@@ -225,15 +196,16 @@ def create_kml_process(polygon_name):
         if file_type_choice in ["D", "A"]:
             try:
                 export_json(data, json_path, tie_point_used, polygon_name)
+                logging.info("JSON file exported successfully: %s", json_path)
                 print(f"JSON file exported successfully: {json_path}")
             except Exception as e:
                 logging.error("Failed to export JSON file: %s", e)
                 print(f"Failed to export JSON file: {e}")
 
-        if file_type_choice in ["G", "A"]:  # Add GeoJSON option
+        if file_type_choice in ["G", "A"]:
             try:
-                geojson_path = os.path.join(json_directory, f"{filename}.geojson")
                 save_as_geojson(data, geojson_path)
+                logging.info("GeoJSON file exported successfully: %s", geojson_path)
                 print(f"GeoJSON file exported successfully: {geojson_path}")
             except Exception as e:
                 logging.error("Failed to export GeoJSON file: %s", e)
@@ -344,10 +316,11 @@ def ensure_directories_exist():
     Ensures that the necessary directories for saving JSON and GeoJSON files exist.
     If they do not exist, they are created automatically.
     """
-    directories = ["saves/json", "saves/geojson"]
+    base_dir = Path(__file__).resolve().parent.parent / 'saves'
+    directories = [base_dir / "json", base_dir / "geojson", base_dir / "kml"]
     for directory in directories:
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        if not directory.exists():
+            directory.mkdir(parents=True)
             print(f"Directory created: {directory}")
             
 
@@ -397,18 +370,16 @@ def gather_data_from_user(polygon_name):
                     "computed_coordinates": {"lat": lat, "lon": lon}
                 })
                 display_monument_point(lat, lon)
+
                 num_points = get_num_points_to_compute()
                 data, new_choice = transition_to_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all, num_points, log_data)
+                
+                # Initialize construction_sequence if it doesn't exist
+                if 'construction_sequence' not in data or not data['construction_sequence']:
+                    data['construction_sequence'] = [f'P{i+1}' for i in range(len(data['polygon']))]
+
                 if new_choice is not None:
                     choice = new_choice
-            else:
-                print("Monument data could not be gathered. Exiting to main menu.")
-                return None, tie_point_used
-        elif point_use_choice == "2":
-            num_points = get_num_points_to_compute()
-            data, new_choice = transition_to_polygon_points(data, log_data["coordinate_format"], lat, lon, use_same_format_for_all, num_points, log_data)
-            if new_choice is not None:
-                choice = new_choice
 
     elif main_choice == "2":
         lat, lon = get_initial_polygon_point()
@@ -419,6 +390,11 @@ def gather_data_from_user(polygon_name):
         log_data["coordinate_format"] = get_coordinate_format_only()
         num_points = get_num_points_to_compute()
         data, new_choice = transition_to_polygon_points(data, log_data["coordinate_format"], lat, lon, use_same_format_for_all, num_points, log_data)
+        
+        # Initialize construction_sequence if it doesn't exist
+        if 'construction_sequence' not in data or not data['construction_sequence']:
+            data['construction_sequence'] = [f'P{i+1}' for i in range(len(data['polygon']))]
+
         if new_choice is not None:
             choice = new_choice
 
@@ -533,8 +509,6 @@ def prepare_points_for_distance_check(points):
 
 
 def transition_to_polygon_points(data, coordinate_format, lat, lon, use_same_format_for_all, num_points, log_data):
-    from io_operations import get_bearing_and_distance
-
     for i in range(num_points):
         if not use_same_format_for_all:
             coordinate_format = get_coordinate_format_only()
@@ -549,9 +523,8 @@ def transition_to_polygon_points(data, coordinate_format, lat, lon, use_same_for
             "id": f"P{len(data.get('polygon', [])) + 1}",
             "bearing": bearing,
             "distance_feet": distance,
-            "lat": new_lat,  # Add this line
-            "lon": new_lon,  # Add this line
-            "computed_coordinates": {"lat": new_lat, "lon": new_lon}
+            "lat": new_lat,
+            "lon": new_lon
         }
         
         data.setdefault('polygon', []).append(point_data)
@@ -563,6 +536,7 @@ def transition_to_polygon_points(data, coordinate_format, lat, lon, use_same_for
 
     return data, None
 
+
 def compute_new_coordinates(lat, lon, bearing, distance):
     # Convert distance from feet to meters
     distance_meters = distance * 0.3048
@@ -573,6 +547,7 @@ def compute_new_coordinates(lat, lon, bearing, distance):
     
     return result['lat2'], result['lon2']
 
+
 def ensure_directories_exist():
     directories = ["saves/json", "saves/geojson"]
     for directory in directories:
@@ -580,26 +555,44 @@ def ensure_directories_exist():
             os.makedirs(directory)
             print(f"Directory created: {directory}")
 
-def save_as_geojson(log_data, geojson_path):
-    features = []
+
+import json
+
+
+def save_as_geojson(data, geojson_path):
     coordinates = []
-
-    for point in log_data["polygon_points"]:
-        coordinates.append([point["computed_coordinates"]["lon"], point["computed_coordinates"]["lat"]])
-
-    geojson_feature = geojson.Feature(
-        geometry=geojson.Polygon([coordinates]),
-        properties={
-            "name": log_data["polygon_name"],
-            "format": log_data["coordinate_format"],
-            "tie_point": log_data["tie_point"],
-            "points": log_data["polygon_points"]  # Include all point data
+    custom_data = []
+    for point in data.get('polygon', []):
+        coordinates.append([point['lon'], point['lat']])
+        custom_data.append({
+            "id": point['id'],
+            "bearing": point['bearing'],
+            "distance_feet": point['distance_feet'],
+            "lat": point['lat'],
+            "lon": point['lon']
+        })
+    
+    geojson_feature = {
+        "type": "Feature",
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [coordinates]
+        },
+        "properties": {
+            "name": data.get("polygon_name", ""),
+            "coordinate_format": data.get("coordinate_format", ""),
+            "tie_point": data.get("tie_point", {}),
+            "custom_data": custom_data
         }
-    )
-    geojson_data = geojson.FeatureCollection([geojson_feature])
+    }
+    geojson_data = {
+        "type": "FeatureCollection",
+        "features": [geojson_feature]
+    }
 
     with open(geojson_path, "w") as geojson_file:
-        geojson.dump(geojson_data, geojson_file, indent=4)
+        json.dump(geojson_data, geojson_file, indent=4)
+        
         
 def generate_metes_and_bounds(log_data):
     description = f"Beginning at the {log_data['polygon_points'][0]['id']}, "
@@ -607,6 +600,7 @@ def generate_metes_and_bounds(log_data):
         description += f"thence {point['bearing']} {point['distance_feet']} feet to {point['id']}, "
     description += f"thence to the point of beginning."
     return description
+
 
 def update_kml_generation(log_data):
     # Implement logic to include detailed point information in KML
